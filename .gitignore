@@ -41,3 +41,6 @@ src/cmd/pfs/pfs
 src/cmd/pfsd/pfsd
 src/cmd/pps/pps
 src/cmd/ppsd/ppsd
+
+# jetbrain files
+.idea
