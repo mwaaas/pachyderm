@@ -1,21 +1,11 @@
-# Pachyderm Documentation #
+# Docs
 
-[Deploying Pachyderm](../SETUP.md)
+These docs are rendered and searchable on our [Developer Documentation Portal](http://pachyderm.readthedocs.io/en/latest). Here are a few section links for quick access.
 
-[Quickstart Guide](../examples/fruit_stand/README.md)
-
-[Pachctl CLI](pachctl)
-
-[Golang Client](https://godoc.org/github.com/pachyderm/pachyderm/src/client)
-
-[Frequently Asked Questions](FAQ.md)
-
-[Use Cases](pachyderm.io/use_cases.html)
-
-[Pachyderm Design Goals](design_goals.md)
-
-[Pipeline Specification](pipeline_spec.md)
-
-[Miscellaneous](miscellaneous.md)
+- [Getting started with Pachyderm](http://pachyderm.readthedocs.io/en/latest/getting_started/getting_started.html) including installation and a beginner tutorial
+- [Analyzing your own data](http://pachyderm.readthedocs.io/en/latest/development/analyze_your_data.html) and creating custom pipelines
+- [Advanced features](http://pachyderm.readthedocs.io/en/latest/advanced/advanced.html) of Pachyderm such as provenance and using diffs of data for processing. 
+- [Pachctl API Documentation](http://pachyderm.readthedocs.io/en/latest/pachctl/pachctl.html)
+- [FAQ](http://pachyderm.readthedocs.io/en/latest/FAQ.html)
 
 

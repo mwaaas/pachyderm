@@ -7,6 +7,7 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"github.com/pachyderm/pachyderm/src/client"
 	pfsclient "github.com/pachyderm/pachyderm/src/client/pfs"
 	"go.pedge.io/lion"
 )
@@ -18,10 +19,10 @@ const (
 
 type mounter struct {
 	address   string
-	apiClient pfsclient.APIClient
+	apiClient *client.APIClient
 }
 
-func newMounter(address string, apiClient pfsclient.APIClient) Mounter {
+func newMounter(address string, apiClient *client.APIClient) Mounter {
 	return &mounter{
 		address,
 		apiClient,
@@ -33,11 +34,13 @@ func (m *mounter) MountAndCreate(
 	shard *pfsclient.Shard,
 	commitMounts []*CommitMount,
 	ready chan bool,
+	debug bool,
+	allCommits bool,
 ) error {
 	if err := os.MkdirAll(mountPoint, 0777); err != nil {
 		return err
 	}
-	return m.Mount(mountPoint, shard, commitMounts, ready)
+	return m.Mount(mountPoint, shard, commitMounts, ready, debug, allCommits)
 }
 
 func (m *mounter) Mount(
@@ -45,6 +48,8 @@ func (m *mounter) Mount(
 	shard *pfsclient.Shard,
 	commitMounts []*CommitMount,
 	ready chan bool,
+	debug bool,
+	allCommits bool,
 ) (retErr error) {
 	var once sync.Once
 	defer once.Do(func() {
@@ -84,15 +89,14 @@ func (m *mounter) Mount(
 		}
 	})
 	config := &fs.Config{}
-	if err := fs.New(conn, config).Serve(newFilesystem(m.apiClient, shard, commitMounts)); err != nil {
+	if debug {
+		config.Debug = func(msg interface{}) { lion.Printf("%+v", msg) }
+	}
+	if err := fs.New(conn, config).Serve(newFilesystem(m.apiClient, shard, commitMounts, allCommits)); err != nil {
 		return err
 	}
 	<-conn.Ready
 	return conn.MountError
-}
-
-func debug(msg interface{}) {
-	lion.Printf("%+v", msg)
 }
 
 func (m *mounter) Unmount(mountPoint string) error {

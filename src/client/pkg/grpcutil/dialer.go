@@ -1,7 +1,6 @@
 package grpcutil
 
 import (
-	"fmt"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -9,61 +8,40 @@ import (
 
 type dialer struct {
 	opts []grpc.DialOption
-	// TODO: this is insane for so many reasons
-	addressToClientConn map[string]*grpc.ClientConn
-	lock                *sync.RWMutex
+	// A map from addresses to connections
+	connMap map[string]*grpc.ClientConn
+	lock    sync.Mutex
 }
 
 func newDialer(opts ...grpc.DialOption) *dialer {
-	return &dialer{opts, make(map[string]*grpc.ClientConn), &sync.RWMutex{}}
+	return &dialer{
+		opts:    opts,
+		connMap: make(map[string]*grpc.ClientConn),
+	}
 }
 
-func (d *dialer) Dial(address string) (*grpc.ClientConn, error) {
-	d.lock.RLock()
-	clientConn, ok := d.addressToClientConn[address]
-	d.lock.RUnlock()
-	if ok && clientConn != nil {
-		state, err := clientConn.State()
-		if err != nil {
-			return nil, err
-		}
-		if state != grpc.Shutdown {
-			return clientConn, nil
-		}
+func (d *dialer) Dial(addr string) (*grpc.ClientConn, error) {
+	d.lock.Lock()
+	defer d.lock.Unlock()
+	if conn, ok := d.connMap[addr]; ok {
+		return conn, nil
 	}
-	newClientConn, err := grpc.Dial(address, d.opts...)
+	conn, err := grpc.Dial(addr, d.opts...)
 	if err != nil {
 		return nil, err
 	}
-	d.lock.Lock()
-	defer d.lock.Unlock()
-	clientConn, ok = d.addressToClientConn[address]
-	if ok && clientConn != nil {
-		state, err := clientConn.State()
-		if err != nil {
-			return nil, err
-		}
-		if state != grpc.Shutdown {
-			_ = newClientConn.Close()
-			return clientConn, nil
-		}
-	}
-	d.addressToClientConn[address] = newClientConn
-	return newClientConn, nil
+	d.connMap[addr] = conn
+	return conn, nil
 }
 
-func (d *dialer) Clean() error {
+func (d *dialer) CloseConns() error {
 	d.lock.Lock()
 	defer d.lock.Unlock()
-	var errs []error
-	for _, clientConn := range d.addressToClientConn {
-		if err := clientConn.Close(); err != nil && err != grpc.ErrClientConnClosing {
-			errs = append(errs, err)
+	for addr, conn := range d.connMap {
+		if err := conn.Close(); err != nil {
+			return err
 		}
-	}
-	d.addressToClientConn = make(map[string]*grpc.ClientConn)
-	if len(errs) > 0 {
-		return fmt.Errorf("%v", errs)
+		delete(d.connMap, addr)
 	}
 	return nil
 }

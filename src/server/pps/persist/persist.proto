@@ -10,21 +10,24 @@ package pachyderm.pps.persist;
 option go_package = "persist";
 
 message JobInfo {
+  reserved 4;
   string job_id = 1;
   pps.Transform transform = 2;
   string pipeline_name = 3;
-  uint64 parallelism = 4;
+  ParallelismSpec parallelism_spec = 18;
   repeated pps.JobInput inputs = 5;
   pps.Job parent_job = 6;
-  google.protobuf.Timestamp created_at = 7;
-  pfs.Commit output_commit = 8;
-  pps.JobState state = 9;
-  string commit_index = 10;
-  uint64 pods_started = 11;
-  uint64 pods_succeeded = 12;
-  uint64 pods_failed = 13;
-  repeated uint64 non_empty_filter_shard_numbers = 14;
-  uint64 shard_modulus = 15;
+  google.protobuf.Timestamp started = 7;
+  google.protobuf.Timestamp finished = 8;
+  pfs.Commit output_commit = 9;
+  string branch = 17;
+  pps.JobState state = 10;
+  string commit_index = 11;
+  uint64 pods_started = 12;
+  uint64 pods_succeeded = 13;
+  uint64 pods_failed = 14;
+  repeated uint64 shard_moduli = 15;
+  map<string, pfs.Commit> pod_commits = 16;
 }
 
 message JobInfos {
@@ -37,23 +40,47 @@ message JobOutput {
 }
 
 message JobState {
-	string job_id = 1;
-	pps.JobState state = 2;
+  string job_id = 1;
+  pps.JobState state = 2;
+  google.protobuf.Timestamp finished = 3; // set when state == FINISHED
+}
+
+message AddPodCommitRequest {
+  string job_id = 1;
+  uint64 pod_index = 2;
+  pfs.Commit commit = 3;
+}
+
+message AddOutputCommitRequest {
+  string job_id = 1;
+  pfs.Commit commit = 2;
+  string branch = 3;
 }
 
 message PipelineInfo {
+  reserved 3;
   string pipeline_name = 1;
   pachyderm.pps.Transform transform = 2;
-  uint64 parallelism = 3;
+  ParallelismSpec parallelism_spec = 12;
   repeated pps.PipelineInput inputs = 4;
   pfs.Repo output_repo = 5;
   google.protobuf.Timestamp created_at = 6;
   uint64 shard = 7;  // this is which shard the pipeline is assigned to
+  pps.PipelineState state = 8;
+  string recent_error = 9;
+  map<int32, int32> job_counts = 10;
+  bool stopped = 11;
+}
+
+enum ChangeType {
+  CREATE = 0;
+  UPDATE = 1;
+  DELETE = 2;
 }
 
 message PipelineInfoChange {
   PipelineInfo pipeline = 1;
-  bool removed = 2;
+  ChangeType type = 2;
 }
 
 message PipelineInfos {
@@ -67,6 +94,22 @@ message SubscribePipelineInfosRequest {
 
 message ListPipelineInfosRequest {
   Shard shard = 1;
+}
+
+message UpdatePipelineStateRequest {
+  string pipeline_name = 1;
+  pps.PipelineState state = 2;
+  string recent_error = 3;
+}
+
+message UpdatePipelineStoppedRequest {
+  string pipeline_name = 1;
+  bool stopped = 2;
+}
+
+message BlockPipelineStateRequest {
+  string pipeline_name = 1;
+  pps.PipelineState state = 2;
 }
 
 // As in, sharding
@@ -84,20 +127,35 @@ service API {
   rpc ListJobInfos(pachyderm.pps.ListJobRequest) returns (JobInfos) {}
   // should only be called when rolling back if a Job does not start!
   rpc DeleteJobInfo(pachyderm.pps.Job) returns (google.protobuf.Empty) {}
+  rpc DeleteJobInfosForPipeline(pachyderm.pps.Pipeline) returns (google.protobuf.Empty) {}
 
   // JobOutput rpcs
   rpc CreateJobOutput(JobOutput) returns (google.protobuf.Empty) {}
 
   // JobState rpcs
   rpc CreateJobState(JobState) returns (google.protobuf.Empty) {}
+  // StartJob sets the state of the job to "running" if the state
+  // is currently "pulling".
+  // This API updates the job state in a transactional manner.
+  rpc StartJob(pachyderm.pps.Job) returns (google.protobuf.Empty) {}
+
+  // Job commit rpcs
+  rpc AddPodCommit(AddPodCommitRequest) returns (google.protobuf.Empty) {}
 
   // Pipeline rpcs
-  rpc CreatePipelineInfo(PipelineInfo) returns (PipelineInfo) {}
+  rpc CreatePipelineInfo(PipelineInfo) returns (google.protobuf.Empty) {}
+  rpc UpdatePipelineInfo(PipelineInfo) returns (google.protobuf.Empty) {}
   rpc GetPipelineInfo(pachyderm.pps.Pipeline) returns (PipelineInfo) {}
   // ordered by time, latest to earliest
   rpc ListPipelineInfos(ListPipelineInfosRequest) returns (PipelineInfos) {}
   rpc DeletePipelineInfo(pachyderm.pps.Pipeline) returns (google.protobuf.Empty) {}
   rpc SubscribePipelineInfos(SubscribePipelineInfosRequest) returns (stream PipelineInfoChange) {}
+  rpc UpdatePipelineState(UpdatePipelineStateRequest) returns (google.protobuf.Empty) {}
+  rpc UpdatePipelineStopped(UpdatePipelineStoppedRequest) returns (google.protobuf.Empty) {}
+  rpc BlockPipelineState(BlockPipelineStateRequest) returns (google.protobuf.Empty) {}
+
+  // DeleteAll deletes everything
+  rpc DeleteAll(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 
   // Shard rpcs
   // Returns the new job info

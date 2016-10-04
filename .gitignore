@@ -2,9 +2,13 @@
 *~
 *#*
 
+# For context helper script config
+.ctx
+
 # Build artifacts
-Dockerfile.pachd
+.goxc.json
 /protofix
+doc/_build
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
@@ -14,6 +18,7 @@ Dockerfile.pachd
 # Folders
 _obj
 _test
+*.DS_Store
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -41,6 +46,8 @@ src/cmd/pfs/pfs
 src/cmd/pfsd/pfsd
 src/cmd/pps/pps
 src/cmd/ppsd/ppsd
+/.goxc.local.json
+build/
 
 # jetbrain files
 .idea

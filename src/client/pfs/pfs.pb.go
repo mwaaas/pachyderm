@@ -11,6 +11,8 @@ It is generated from these files:
 It has these top-level messages:
 	Repo
 	Commit
+	Commits
+	Branches
 	File
 	Block
 	Diff
@@ -33,16 +35,23 @@ It has these top-level messages:
 	ListRepoRequest
 	DeleteRepoRequest
 	StartCommitRequest
+	ForkCommitRequest
 	FinishCommitRequest
+	ArchiveCommitRequest
 	InspectCommitRequest
 	ListCommitRequest
 	ListBranchRequest
 	DeleteCommitRequest
+	FlushCommitRequest
+	DiffMethod
 	GetFileRequest
 	PutFileRequest
 	InspectFileRequest
 	ListFileRequest
 	DeleteFileRequest
+	SquashCommitRequest
+	ReplayCommitRequest
+	PutBlockRequest
 	GetBlockRequest
 	DeleteBlockRequest
 	InspectBlockRequest
@@ -56,7 +65,7 @@ package pfs
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import _ "github.com/gengo/grpc-gateway/third_party/googleapis/google/api"
+import _ "github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis/google/api"
 import google_protobuf1 "go.pedge.io/pb/go/google/protobuf"
 import google_protobuf2 "go.pedge.io/pb/go/google/protobuf"
 import google_protobuf3 "go.pedge.io/pb/go/google/protobuf"
@@ -74,7 +83,9 @@ var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
-const _ = proto.ProtoPackageIsVersion1
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type CommitType int32
 
@@ -124,6 +135,57 @@ func (x FileType) String() string {
 }
 func (FileType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
+type CommitStatus int32
+
+const (
+	CommitStatus_NORMAL    CommitStatus = 0
+	CommitStatus_ARCHIVED  CommitStatus = 1
+	CommitStatus_CANCELLED CommitStatus = 2
+	CommitStatus_ALL       CommitStatus = 3
+)
+
+var CommitStatus_name = map[int32]string{
+	0: "NORMAL",
+	1: "ARCHIVED",
+	2: "CANCELLED",
+	3: "ALL",
+}
+var CommitStatus_value = map[string]int32{
+	"NORMAL":    0,
+	"ARCHIVED":  1,
+	"CANCELLED": 2,
+	"ALL":       3,
+}
+
+func (x CommitStatus) String() string {
+	return proto.EnumName(CommitStatus_name, int32(x))
+}
+func (CommitStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+type Delimiter int32
+
+const (
+	Delimiter_NONE Delimiter = 0
+	Delimiter_JSON Delimiter = 1
+	Delimiter_LINE Delimiter = 2
+)
+
+var Delimiter_name = map[int32]string{
+	0: "NONE",
+	1: "JSON",
+	2: "LINE",
+}
+var Delimiter_value = map[string]int32{
+	"NONE": 0,
+	"JSON": 1,
+	"LINE": 2,
+}
+
+func (x Delimiter) String() string {
+	return proto.EnumName(Delimiter_name, int32(x))
+}
+func (Delimiter) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+
 type Repo struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 }
@@ -150,6 +212,31 @@ func (m *Commit) GetRepo() *Repo {
 	return nil
 }
 
+type Commits struct {
+	Commit []*Commit `protobuf:"bytes,1,rep,name=commit" json:"commit,omitempty"`
+}
+
+func (m *Commits) Reset()                    { *m = Commits{} }
+func (m *Commits) String() string            { return proto.CompactTextString(m) }
+func (*Commits) ProtoMessage()               {}
+func (*Commits) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+func (m *Commits) GetCommit() []*Commit {
+	if m != nil {
+		return m.Commit
+	}
+	return nil
+}
+
+type Branches struct {
+	Branches []string `protobuf:"bytes,1,rep,name=branches" json:"branches,omitempty"`
+}
+
+func (m *Branches) Reset()                    { *m = Branches{} }
+func (m *Branches) String() string            { return proto.CompactTextString(m) }
+func (*Branches) ProtoMessage()               {}
+func (*Branches) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+
 type File struct {
 	Commit *Commit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
 	Path   string  `protobuf:"bytes,2,opt,name=path" json:"path,omitempty"`
@@ -158,7 +245,7 @@ type File struct {
 func (m *File) Reset()                    { *m = File{} }
 func (m *File) String() string            { return proto.CompactTextString(m) }
 func (*File) ProtoMessage()               {}
-func (*File) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*File) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *File) GetCommit() *Commit {
 	if m != nil {
@@ -174,7 +261,7 @@ type Block struct {
 func (m *Block) Reset()                    { *m = Block{} }
 func (m *Block) String() string            { return proto.CompactTextString(m) }
 func (*Block) ProtoMessage()               {}
-func (*Block) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*Block) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 type Diff struct {
 	Commit *Commit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
@@ -184,7 +271,7 @@ type Diff struct {
 func (m *Diff) Reset()                    { *m = Diff{} }
 func (m *Diff) String() string            { return proto.CompactTextString(m) }
 func (*Diff) ProtoMessage()               {}
-func (*Diff) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*Diff) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *Diff) GetCommit() *Commit {
 	if m != nil {
@@ -194,15 +281,16 @@ func (m *Diff) GetCommit() *Commit {
 }
 
 type RepoInfo struct {
-	Repo      *Repo                       `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
-	Created   *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=created" json:"created,omitempty"`
-	SizeBytes uint64                      `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
+	Repo       *Repo                       `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Created    *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=created" json:"created,omitempty"`
+	SizeBytes  uint64                      `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
+	Provenance []*Repo                     `protobuf:"bytes,4,rep,name=provenance" json:"provenance,omitempty"`
 }
 
 func (m *RepoInfo) Reset()                    { *m = RepoInfo{} }
 func (m *RepoInfo) String() string            { return proto.CompactTextString(m) }
 func (*RepoInfo) ProtoMessage()               {}
-func (*RepoInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*RepoInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *RepoInfo) GetRepo() *Repo {
 	if m != nil {
@@ -218,6 +306,13 @@ func (m *RepoInfo) GetCreated() *google_protobuf2.Timestamp {
 	return nil
 }
 
+func (m *RepoInfo) GetProvenance() []*Repo {
+	if m != nil {
+		return m.Provenance
+	}
+	return nil
+}
+
 type RepoInfos struct {
 	RepoInfo []*RepoInfo `protobuf:"bytes,1,rep,name=repo_info,json=repoInfo" json:"repo_info,omitempty"`
 }
@@ -225,7 +320,7 @@ type RepoInfos struct {
 func (m *RepoInfos) Reset()                    { *m = RepoInfos{} }
 func (m *RepoInfos) String() string            { return proto.CompactTextString(m) }
 func (*RepoInfos) ProtoMessage()               {}
-func (*RepoInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*RepoInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 func (m *RepoInfos) GetRepoInfo() []*RepoInfo {
 	if m != nil {
@@ -243,12 +338,14 @@ type CommitInfo struct {
 	Finished     *google_protobuf2.Timestamp `protobuf:"bytes,6,opt,name=finished" json:"finished,omitempty"`
 	SizeBytes    uint64                      `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
 	Cancelled    bool                        `protobuf:"varint,8,opt,name=cancelled" json:"cancelled,omitempty"`
+	Archived     bool                        `protobuf:"varint,9,opt,name=archived" json:"archived,omitempty"`
+	Provenance   []*Commit                   `protobuf:"bytes,10,rep,name=provenance" json:"provenance,omitempty"`
 }
 
 func (m *CommitInfo) Reset()                    { *m = CommitInfo{} }
 func (m *CommitInfo) String() string            { return proto.CompactTextString(m) }
 func (*CommitInfo) ProtoMessage()               {}
-func (*CommitInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*CommitInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *CommitInfo) GetCommit() *Commit {
 	if m != nil {
@@ -278,6 +375,13 @@ func (m *CommitInfo) GetFinished() *google_protobuf2.Timestamp {
 	return nil
 }
 
+func (m *CommitInfo) GetProvenance() []*Commit {
+	if m != nil {
+		return m.Provenance
+	}
+	return nil
+}
+
 type CommitInfos struct {
 	CommitInfo []*CommitInfo `protobuf:"bytes,1,rep,name=commit_info,json=commitInfo" json:"commit_info,omitempty"`
 }
@@ -285,7 +389,7 @@ type CommitInfos struct {
 func (m *CommitInfos) Reset()                    { *m = CommitInfos{} }
 func (m *CommitInfos) String() string            { return proto.CompactTextString(m) }
 func (*CommitInfos) ProtoMessage()               {}
-func (*CommitInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*CommitInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 func (m *CommitInfos) GetCommitInfo() []*CommitInfo {
 	if m != nil {
@@ -306,7 +410,7 @@ type FileInfo struct {
 func (m *FileInfo) Reset()                    { *m = FileInfo{} }
 func (m *FileInfo) String() string            { return proto.CompactTextString(m) }
 func (*FileInfo) ProtoMessage()               {}
-func (*FileInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*FileInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *FileInfo) GetFile() *File {
 	if m != nil {
@@ -343,7 +447,7 @@ type FileInfos struct {
 func (m *FileInfos) Reset()                    { *m = FileInfos{} }
 func (m *FileInfos) String() string            { return proto.CompactTextString(m) }
 func (*FileInfos) ProtoMessage()               {}
-func (*FileInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*FileInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *FileInfos) GetFileInfo() []*FileInfo {
 	if m != nil {
@@ -360,7 +464,7 @@ type ByteRange struct {
 func (m *ByteRange) Reset()                    { *m = ByteRange{} }
 func (m *ByteRange) String() string            { return proto.CompactTextString(m) }
 func (*ByteRange) ProtoMessage()               {}
-func (*ByteRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*ByteRange) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 type BlockRef struct {
 	Block *Block     `protobuf:"bytes,1,opt,name=block" json:"block,omitempty"`
@@ -370,7 +474,7 @@ type BlockRef struct {
 func (m *BlockRef) Reset()                    { *m = BlockRef{} }
 func (m *BlockRef) String() string            { return proto.CompactTextString(m) }
 func (*BlockRef) ProtoMessage()               {}
-func (*BlockRef) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*BlockRef) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *BlockRef) GetBlock() *Block {
 	if m != nil {
@@ -393,7 +497,7 @@ type BlockRefs struct {
 func (m *BlockRefs) Reset()                    { *m = BlockRefs{} }
 func (m *BlockRefs) String() string            { return proto.CompactTextString(m) }
 func (*BlockRefs) ProtoMessage()               {}
-func (*BlockRefs) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*BlockRefs) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *BlockRefs) GetBlockRef() []*BlockRef {
 	if m != nil {
@@ -403,17 +507,17 @@ func (m *BlockRefs) GetBlockRef() []*BlockRef {
 }
 
 type Append struct {
-	BlockRefs []*BlockRef           `protobuf:"bytes,1,rep,name=block_refs,json=blockRefs" json:"block_refs,omitempty"`
-	Children  map[string]bool       `protobuf:"bytes,2,rep,name=children" json:"children,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	LastRef   *Commit               `protobuf:"bytes,3,opt,name=last_ref,json=lastRef" json:"last_ref,omitempty"`
-	Delete    bool                  `protobuf:"varint,4,opt,name=delete" json:"delete,omitempty"`
-	Handles   map[string]*BlockRefs `protobuf:"bytes,5,rep,name=handles" json:"handles,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	BlockRefs []*BlockRef     `protobuf:"bytes,1,rep,name=block_refs,json=blockRefs" json:"block_refs,omitempty"`
+	Children  map[string]bool `protobuf:"bytes,2,rep,name=children" json:"children,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	LastRef   *Commit         `protobuf:"bytes,3,opt,name=last_ref,json=lastRef" json:"last_ref,omitempty"`
+	Delete    bool            `protobuf:"varint,4,opt,name=delete" json:"delete,omitempty"`
+	FileType  FileType        `protobuf:"varint,5,opt,name=file_type,json=fileType,enum=pfs.FileType" json:"file_type,omitempty"`
 }
 
 func (m *Append) Reset()                    { *m = Append{} }
 func (m *Append) String() string            { return proto.CompactTextString(m) }
 func (*Append) ProtoMessage()               {}
-func (*Append) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*Append) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
 func (m *Append) GetBlockRefs() []*BlockRef {
 	if m != nil {
@@ -436,13 +540,6 @@ func (m *Append) GetLastRef() *Commit {
 	return nil
 }
 
-func (m *Append) GetHandles() map[string]*BlockRefs {
-	if m != nil {
-		return m.Handles
-	}
-	return nil
-}
-
 type BlockInfo struct {
 	Block     *Block                      `protobuf:"bytes,1,opt,name=block" json:"block,omitempty"`
 	Created   *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=created" json:"created,omitempty"`
@@ -452,7 +549,7 @@ type BlockInfo struct {
 func (m *BlockInfo) Reset()                    { *m = BlockInfo{} }
 func (m *BlockInfo) String() string            { return proto.CompactTextString(m) }
 func (*BlockInfo) ProtoMessage()               {}
-func (*BlockInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*BlockInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *BlockInfo) GetBlock() *Block {
 	if m != nil {
@@ -475,7 +572,7 @@ type BlockInfos struct {
 func (m *BlockInfos) Reset()                    { *m = BlockInfos{} }
 func (m *BlockInfos) String() string            { return proto.CompactTextString(m) }
 func (*BlockInfos) ProtoMessage()               {}
-func (*BlockInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*BlockInfos) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 func (m *BlockInfos) GetBlockInfo() []*BlockInfo {
 	if m != nil {
@@ -491,15 +588,17 @@ type DiffInfo struct {
 	Started      *google_protobuf2.Timestamp `protobuf:"bytes,4,opt,name=started" json:"started,omitempty"`
 	Finished     *google_protobuf2.Timestamp `protobuf:"bytes,5,opt,name=finished" json:"finished,omitempty"`
 	// Appends is the BlockRefs which have been append to files indexed by path.
-	Appends   map[string]*Append `protobuf:"bytes,6,rep,name=appends" json:"appends,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SizeBytes uint64             `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
-	Cancelled bool               `protobuf:"varint,8,opt,name=cancelled" json:"cancelled,omitempty"`
+	Appends    map[string]*Append `protobuf:"bytes,6,rep,name=appends" json:"appends,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SizeBytes  uint64             `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
+	Cancelled  bool               `protobuf:"varint,8,opt,name=cancelled" json:"cancelled,omitempty"`
+	Provenance []*Commit          `protobuf:"bytes,9,rep,name=provenance" json:"provenance,omitempty"`
+	Archived   bool               `protobuf:"varint,10,opt,name=archived" json:"archived,omitempty"`
 }
 
 func (m *DiffInfo) Reset()                    { *m = DiffInfo{} }
 func (m *DiffInfo) String() string            { return proto.CompactTextString(m) }
 func (*DiffInfo) ProtoMessage()               {}
-func (*DiffInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*DiffInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
 func (m *DiffInfo) GetDiff() *Diff {
 	if m != nil {
@@ -536,6 +635,13 @@ func (m *DiffInfo) GetAppends() map[string]*Append {
 	return nil
 }
 
+func (m *DiffInfo) GetProvenance() []*Commit {
+	if m != nil {
+		return m.Provenance
+	}
+	return nil
+}
+
 type Shard struct {
 	FileNumber   uint64 `protobuf:"varint,1,opt,name=file_number,json=fileNumber" json:"file_number,omitempty"`
 	FileModulus  uint64 `protobuf:"varint,2,opt,name=file_modulus,json=fileModulus" json:"file_modulus,omitempty"`
@@ -546,17 +652,17 @@ type Shard struct {
 func (m *Shard) Reset()                    { *m = Shard{} }
 func (m *Shard) String() string            { return proto.CompactTextString(m) }
 func (*Shard) ProtoMessage()               {}
-func (*Shard) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*Shard) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 type CreateRepoRequest struct {
-	Repo    *Repo                       `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
-	Created *google_protobuf2.Timestamp `protobuf:"bytes,2,opt,name=created" json:"created,omitempty"`
+	Repo       *Repo   `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Provenance []*Repo `protobuf:"bytes,2,rep,name=provenance" json:"provenance,omitempty"`
 }
 
 func (m *CreateRepoRequest) Reset()                    { *m = CreateRepoRequest{} }
 func (m *CreateRepoRequest) String() string            { return proto.CompactTextString(m) }
 func (*CreateRepoRequest) ProtoMessage()               {}
-func (*CreateRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*CreateRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 func (m *CreateRepoRequest) GetRepo() *Repo {
 	if m != nil {
@@ -565,9 +671,9 @@ func (m *CreateRepoRequest) GetRepo() *Repo {
 	return nil
 }
 
-func (m *CreateRepoRequest) GetCreated() *google_protobuf2.Timestamp {
+func (m *CreateRepoRequest) GetProvenance() []*Repo {
 	if m != nil {
-		return m.Created
+		return m.Provenance
 	}
 	return nil
 }
@@ -579,7 +685,7 @@ type InspectRepoRequest struct {
 func (m *InspectRepoRequest) Reset()                    { *m = InspectRepoRequest{} }
 func (m *InspectRepoRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectRepoRequest) ProtoMessage()               {}
-func (*InspectRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (*InspectRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
 func (m *InspectRepoRequest) GetRepo() *Repo {
 	if m != nil {
@@ -589,21 +695,30 @@ func (m *InspectRepoRequest) GetRepo() *Repo {
 }
 
 type ListRepoRequest struct {
+	Provenance []*Repo `protobuf:"bytes,1,rep,name=provenance" json:"provenance,omitempty"`
 }
 
 func (m *ListRepoRequest) Reset()                    { *m = ListRepoRequest{} }
 func (m *ListRepoRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListRepoRequest) ProtoMessage()               {}
-func (*ListRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*ListRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+
+func (m *ListRepoRequest) GetProvenance() []*Repo {
+	if m != nil {
+		return m.Provenance
+	}
+	return nil
+}
 
 type DeleteRepoRequest struct {
-	Repo *Repo `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Repo  *Repo `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Force bool  `protobuf:"varint,2,opt,name=force" json:"force,omitempty"`
 }
 
 func (m *DeleteRepoRequest) Reset()                    { *m = DeleteRepoRequest{} }
 func (m *DeleteRepoRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteRepoRequest) ProtoMessage()               {}
-func (*DeleteRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*DeleteRepoRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
 
 func (m *DeleteRepoRequest) GetRepo() *Repo {
 	if m != nil {
@@ -613,42 +728,63 @@ func (m *DeleteRepoRequest) GetRepo() *Repo {
 }
 
 type StartCommitRequest struct {
-	Repo     *Repo                       `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
-	ID       string                      `protobuf:"bytes,2,opt,name=id" json:"id,omitempty"`
-	ParentID string                      `protobuf:"bytes,3,opt,name=parent_id,json=parentId" json:"parent_id,omitempty"`
-	Branch   string                      `protobuf:"bytes,4,opt,name=branch" json:"branch,omitempty"`
-	Started  *google_protobuf2.Timestamp `protobuf:"bytes,5,opt,name=started" json:"started,omitempty"`
+	Parent     *Commit   `protobuf:"bytes,1,opt,name=parent" json:"parent,omitempty"`
+	Provenance []*Commit `protobuf:"bytes,2,rep,name=provenance" json:"provenance,omitempty"`
 }
 
 func (m *StartCommitRequest) Reset()                    { *m = StartCommitRequest{} }
 func (m *StartCommitRequest) String() string            { return proto.CompactTextString(m) }
 func (*StartCommitRequest) ProtoMessage()               {}
-func (*StartCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*StartCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
 
-func (m *StartCommitRequest) GetRepo() *Repo {
+func (m *StartCommitRequest) GetParent() *Commit {
 	if m != nil {
-		return m.Repo
+		return m.Parent
 	}
 	return nil
 }
 
-func (m *StartCommitRequest) GetStarted() *google_protobuf2.Timestamp {
+func (m *StartCommitRequest) GetProvenance() []*Commit {
 	if m != nil {
-		return m.Started
+		return m.Provenance
+	}
+	return nil
+}
+
+type ForkCommitRequest struct {
+	Parent     *Commit   `protobuf:"bytes,1,opt,name=parent" json:"parent,omitempty"`
+	Branch     string    `protobuf:"bytes,2,opt,name=branch" json:"branch,omitempty"`
+	Provenance []*Commit `protobuf:"bytes,3,rep,name=provenance" json:"provenance,omitempty"`
+}
+
+func (m *ForkCommitRequest) Reset()                    { *m = ForkCommitRequest{} }
+func (m *ForkCommitRequest) String() string            { return proto.CompactTextString(m) }
+func (*ForkCommitRequest) ProtoMessage()               {}
+func (*ForkCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+
+func (m *ForkCommitRequest) GetParent() *Commit {
+	if m != nil {
+		return m.Parent
+	}
+	return nil
+}
+
+func (m *ForkCommitRequest) GetProvenance() []*Commit {
+	if m != nil {
+		return m.Provenance
 	}
 	return nil
 }
 
 type FinishCommitRequest struct {
-	Commit   *Commit                     `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
-	Cancel   bool                        `protobuf:"varint,2,opt,name=cancel" json:"cancel,omitempty"`
-	Finished *google_protobuf2.Timestamp `protobuf:"bytes,3,opt,name=finished" json:"finished,omitempty"`
+	Commit *Commit `protobuf:"bytes,1,opt,name=commit" json:"commit,omitempty"`
+	Cancel bool    `protobuf:"varint,2,opt,name=cancel" json:"cancel,omitempty"`
 }
 
 func (m *FinishCommitRequest) Reset()                    { *m = FinishCommitRequest{} }
 func (m *FinishCommitRequest) String() string            { return proto.CompactTextString(m) }
 func (*FinishCommitRequest) ProtoMessage()               {}
-func (*FinishCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+func (*FinishCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
 
 func (m *FinishCommitRequest) GetCommit() *Commit {
 	if m != nil {
@@ -657,9 +793,18 @@ func (m *FinishCommitRequest) GetCommit() *Commit {
 	return nil
 }
 
-func (m *FinishCommitRequest) GetFinished() *google_protobuf2.Timestamp {
+type ArchiveCommitRequest struct {
+	Commits []*Commit `protobuf:"bytes,1,rep,name=commits" json:"commits,omitempty"`
+}
+
+func (m *ArchiveCommitRequest) Reset()                    { *m = ArchiveCommitRequest{} }
+func (m *ArchiveCommitRequest) String() string            { return proto.CompactTextString(m) }
+func (*ArchiveCommitRequest) ProtoMessage()               {}
+func (*ArchiveCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+
+func (m *ArchiveCommitRequest) GetCommits() []*Commit {
 	if m != nil {
-		return m.Finished
+		return m.Commits
 	}
 	return nil
 }
@@ -671,7 +816,7 @@ type InspectCommitRequest struct {
 func (m *InspectCommitRequest) Reset()                    { *m = InspectCommitRequest{} }
 func (m *InspectCommitRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectCommitRequest) ProtoMessage()               {}
-func (*InspectCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (*InspectCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
 
 func (m *InspectCommitRequest) GetCommit() *Commit {
 	if m != nil {
@@ -681,40 +826,41 @@ func (m *InspectCommitRequest) GetCommit() *Commit {
 }
 
 type ListCommitRequest struct {
-	Repo       []*Repo    `protobuf:"bytes,1,rep,name=repo" json:"repo,omitempty"`
-	CommitType CommitType `protobuf:"varint,2,opt,name=commit_type,json=commitType,enum=pfs.CommitType" json:"commit_type,omitempty"`
-	FromCommit []*Commit  `protobuf:"bytes,3,rep,name=from_commit,json=fromCommit" json:"from_commit,omitempty"`
-	All        bool       `protobuf:"varint,4,opt,name=all" json:"all,omitempty"`
-	Block      bool       `protobuf:"varint,5,opt,name=block" json:"block,omitempty"`
+	FromCommits []*Commit    `protobuf:"bytes,1,rep,name=from_commits,json=fromCommits" json:"from_commits,omitempty"`
+	Provenance  []*Commit    `protobuf:"bytes,2,rep,name=provenance" json:"provenance,omitempty"`
+	CommitType  CommitType   `protobuf:"varint,3,opt,name=commit_type,json=commitType,enum=pfs.CommitType" json:"commit_type,omitempty"`
+	Status      CommitStatus `protobuf:"varint,4,opt,name=status,enum=pfs.CommitStatus" json:"status,omitempty"`
+	Block       bool         `protobuf:"varint,5,opt,name=block" json:"block,omitempty"`
 }
 
 func (m *ListCommitRequest) Reset()                    { *m = ListCommitRequest{} }
 func (m *ListCommitRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListCommitRequest) ProtoMessage()               {}
-func (*ListCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+func (*ListCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
 
-func (m *ListCommitRequest) GetRepo() []*Repo {
+func (m *ListCommitRequest) GetFromCommits() []*Commit {
 	if m != nil {
-		return m.Repo
+		return m.FromCommits
 	}
 	return nil
 }
 
-func (m *ListCommitRequest) GetFromCommit() []*Commit {
+func (m *ListCommitRequest) GetProvenance() []*Commit {
 	if m != nil {
-		return m.FromCommit
+		return m.Provenance
 	}
 	return nil
 }
 
 type ListBranchRequest struct {
-	Repo *Repo `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Repo   *Repo        `protobuf:"bytes,1,opt,name=repo" json:"repo,omitempty"`
+	Status CommitStatus `protobuf:"varint,2,opt,name=status,enum=pfs.CommitStatus" json:"status,omitempty"`
 }
 
 func (m *ListBranchRequest) Reset()                    { *m = ListBranchRequest{} }
 func (m *ListBranchRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListBranchRequest) ProtoMessage()               {}
-func (*ListBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
+func (*ListBranchRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
 
 func (m *ListBranchRequest) GetRepo() *Repo {
 	if m != nil {
@@ -730,7 +876,7 @@ type DeleteCommitRequest struct {
 func (m *DeleteCommitRequest) Reset()                    { *m = DeleteCommitRequest{} }
 func (m *DeleteCommitRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteCommitRequest) ProtoMessage()               {}
-func (*DeleteCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+func (*DeleteCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
 
 func (m *DeleteCommitRequest) GetCommit() *Commit {
 	if m != nil {
@@ -739,19 +885,65 @@ func (m *DeleteCommitRequest) GetCommit() *Commit {
 	return nil
 }
 
+type FlushCommitRequest struct {
+	Commit []*Commit `protobuf:"bytes,1,rep,name=commit" json:"commit,omitempty"`
+	ToRepo []*Repo   `protobuf:"bytes,2,rep,name=to_repo,json=toRepo" json:"to_repo,omitempty"`
+}
+
+func (m *FlushCommitRequest) Reset()                    { *m = FlushCommitRequest{} }
+func (m *FlushCommitRequest) String() string            { return proto.CompactTextString(m) }
+func (*FlushCommitRequest) ProtoMessage()               {}
+func (*FlushCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
+
+func (m *FlushCommitRequest) GetCommit() []*Commit {
+	if m != nil {
+		return m.Commit
+	}
+	return nil
+}
+
+func (m *FlushCommitRequest) GetToRepo() []*Repo {
+	if m != nil {
+		return m.ToRepo
+	}
+	return nil
+}
+
+// DiffMethod specifies how file operations represent changes to files.
+// If FromCommit is nil then the whole file will be returned.
+// If FromCommit is not nil and FullFile is false then only the changes since
+// FromCommit will be returned.
+// If FromCommit is not nil and FullFile is true then the whole file will be
+// returned if there have been changes since FromCommit.
+type DiffMethod struct {
+	FromCommit *Commit `protobuf:"bytes,1,opt,name=from_commit,json=fromCommit" json:"from_commit,omitempty"`
+	FullFile   bool    `protobuf:"varint,2,opt,name=full_file,json=fullFile" json:"full_file,omitempty"`
+}
+
+func (m *DiffMethod) Reset()                    { *m = DiffMethod{} }
+func (m *DiffMethod) String() string            { return proto.CompactTextString(m) }
+func (*DiffMethod) ProtoMessage()               {}
+func (*DiffMethod) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
+
+func (m *DiffMethod) GetFromCommit() *Commit {
+	if m != nil {
+		return m.FromCommit
+	}
+	return nil
+}
+
 type GetFileRequest struct {
-	File        *File   `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
-	OffsetBytes int64   `protobuf:"varint,2,opt,name=offset_bytes,json=offsetBytes" json:"offset_bytes,omitempty"`
-	SizeBytes   int64   `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
-	Shard       *Shard  `protobuf:"bytes,4,opt,name=shard" json:"shard,omitempty"`
-	FromCommit  *Commit `protobuf:"bytes,5,opt,name=from_commit,json=fromCommit" json:"from_commit,omitempty"`
-	Unsafe      bool    `protobuf:"varint,6,opt,name=unsafe" json:"unsafe,omitempty"`
+	File        *File       `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
+	OffsetBytes int64       `protobuf:"varint,2,opt,name=offset_bytes,json=offsetBytes" json:"offset_bytes,omitempty"`
+	SizeBytes   int64       `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes" json:"size_bytes,omitempty"`
+	Shard       *Shard      `protobuf:"bytes,4,opt,name=shard" json:"shard,omitempty"`
+	DiffMethod  *DiffMethod `protobuf:"bytes,5,opt,name=diff_method,json=diffMethod" json:"diff_method,omitempty"`
 }
 
 func (m *GetFileRequest) Reset()                    { *m = GetFileRequest{} }
 func (m *GetFileRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetFileRequest) ProtoMessage()               {}
-func (*GetFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+func (*GetFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{35} }
 
 func (m *GetFileRequest) GetFile() *File {
 	if m != nil {
@@ -767,24 +959,25 @@ func (m *GetFileRequest) GetShard() *Shard {
 	return nil
 }
 
-func (m *GetFileRequest) GetFromCommit() *Commit {
+func (m *GetFileRequest) GetDiffMethod() *DiffMethod {
 	if m != nil {
-		return m.FromCommit
+		return m.DiffMethod
 	}
 	return nil
 }
 
 type PutFileRequest struct {
-	File     *File    `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
-	FileType FileType `protobuf:"varint,2,opt,name=file_type,json=fileType,enum=pfs.FileType" json:"file_type,omitempty"`
-	Value    []byte   `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
-	Handle   string   `protobuf:"bytes,4,opt,name=handle" json:"handle,omitempty"`
+	File      *File     `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
+	FileType  FileType  `protobuf:"varint,2,opt,name=file_type,json=fileType,enum=pfs.FileType" json:"file_type,omitempty"`
+	Value     []byte    `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	Delimiter Delimiter `protobuf:"varint,4,opt,name=delimiter,enum=pfs.Delimiter" json:"delimiter,omitempty"`
+	Url       string    `protobuf:"bytes,5,opt,name=url" json:"url,omitempty"`
 }
 
 func (m *PutFileRequest) Reset()                    { *m = PutFileRequest{} }
 func (m *PutFileRequest) String() string            { return proto.CompactTextString(m) }
 func (*PutFileRequest) ProtoMessage()               {}
-func (*PutFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+func (*PutFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{36} }
 
 func (m *PutFileRequest) GetFile() *File {
 	if m != nil {
@@ -794,16 +987,15 @@ func (m *PutFileRequest) GetFile() *File {
 }
 
 type InspectFileRequest struct {
-	File       *File   `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
-	Shard      *Shard  `protobuf:"bytes,2,opt,name=shard" json:"shard,omitempty"`
-	FromCommit *Commit `protobuf:"bytes,3,opt,name=from_commit,json=fromCommit" json:"from_commit,omitempty"`
-	Unsafe     bool    `protobuf:"varint,4,opt,name=unsafe" json:"unsafe,omitempty"`
+	File       *File       `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
+	Shard      *Shard      `protobuf:"bytes,2,opt,name=shard" json:"shard,omitempty"`
+	DiffMethod *DiffMethod `protobuf:"bytes,3,opt,name=diff_method,json=diffMethod" json:"diff_method,omitempty"`
 }
 
 func (m *InspectFileRequest) Reset()                    { *m = InspectFileRequest{} }
 func (m *InspectFileRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectFileRequest) ProtoMessage()               {}
-func (*InspectFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
+func (*InspectFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{37} }
 
 func (m *InspectFileRequest) GetFile() *File {
 	if m != nil {
@@ -819,25 +1011,24 @@ func (m *InspectFileRequest) GetShard() *Shard {
 	return nil
 }
 
-func (m *InspectFileRequest) GetFromCommit() *Commit {
+func (m *InspectFileRequest) GetDiffMethod() *DiffMethod {
 	if m != nil {
-		return m.FromCommit
+		return m.DiffMethod
 	}
 	return nil
 }
 
 type ListFileRequest struct {
-	File       *File   `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
-	Shard      *Shard  `protobuf:"bytes,2,opt,name=shard" json:"shard,omitempty"`
-	FromCommit *Commit `protobuf:"bytes,3,opt,name=from_commit,json=fromCommit" json:"from_commit,omitempty"`
-	Recurse    bool    `protobuf:"varint,4,opt,name=recurse" json:"recurse,omitempty"`
-	Unsafe     bool    `protobuf:"varint,5,opt,name=unsafe" json:"unsafe,omitempty"`
+	File       *File       `protobuf:"bytes,1,opt,name=file" json:"file,omitempty"`
+	Shard      *Shard      `protobuf:"bytes,2,opt,name=shard" json:"shard,omitempty"`
+	DiffMethod *DiffMethod `protobuf:"bytes,3,opt,name=diff_method,json=diffMethod" json:"diff_method,omitempty"`
+	Recurse    bool        `protobuf:"varint,4,opt,name=recurse" json:"recurse,omitempty"`
 }
 
 func (m *ListFileRequest) Reset()                    { *m = ListFileRequest{} }
 func (m *ListFileRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListFileRequest) ProtoMessage()               {}
-func (*ListFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
+func (*ListFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{38} }
 
 func (m *ListFileRequest) GetFile() *File {
 	if m != nil {
@@ -853,9 +1044,9 @@ func (m *ListFileRequest) GetShard() *Shard {
 	return nil
 }
 
-func (m *ListFileRequest) GetFromCommit() *Commit {
+func (m *ListFileRequest) GetDiffMethod() *DiffMethod {
 	if m != nil {
-		return m.FromCommit
+		return m.DiffMethod
 	}
 	return nil
 }
@@ -867,7 +1058,7 @@ type DeleteFileRequest struct {
 func (m *DeleteFileRequest) Reset()                    { *m = DeleteFileRequest{} }
 func (m *DeleteFileRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteFileRequest) ProtoMessage()               {}
-func (*DeleteFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
+func (*DeleteFileRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
 
 func (m *DeleteFileRequest) GetFile() *File {
 	if m != nil {
@@ -875,6 +1066,57 @@ func (m *DeleteFileRequest) GetFile() *File {
 	}
 	return nil
 }
+
+type SquashCommitRequest struct {
+	FromCommits []*Commit `protobuf:"bytes,1,rep,name=from_commits,json=fromCommits" json:"from_commits,omitempty"`
+	ToCommit    *Commit   `protobuf:"bytes,2,opt,name=to_commit,json=toCommit" json:"to_commit,omitempty"`
+}
+
+func (m *SquashCommitRequest) Reset()                    { *m = SquashCommitRequest{} }
+func (m *SquashCommitRequest) String() string            { return proto.CompactTextString(m) }
+func (*SquashCommitRequest) ProtoMessage()               {}
+func (*SquashCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{40} }
+
+func (m *SquashCommitRequest) GetFromCommits() []*Commit {
+	if m != nil {
+		return m.FromCommits
+	}
+	return nil
+}
+
+func (m *SquashCommitRequest) GetToCommit() *Commit {
+	if m != nil {
+		return m.ToCommit
+	}
+	return nil
+}
+
+type ReplayCommitRequest struct {
+	FromCommits []*Commit `protobuf:"bytes,1,rep,name=from_commits,json=fromCommits" json:"from_commits,omitempty"`
+	ToBranch    string    `protobuf:"bytes,2,opt,name=to_branch,json=toBranch" json:"to_branch,omitempty"`
+}
+
+func (m *ReplayCommitRequest) Reset()                    { *m = ReplayCommitRequest{} }
+func (m *ReplayCommitRequest) String() string            { return proto.CompactTextString(m) }
+func (*ReplayCommitRequest) ProtoMessage()               {}
+func (*ReplayCommitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{41} }
+
+func (m *ReplayCommitRequest) GetFromCommits() []*Commit {
+	if m != nil {
+		return m.FromCommits
+	}
+	return nil
+}
+
+type PutBlockRequest struct {
+	Value     []byte    `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Delimiter Delimiter `protobuf:"varint,2,opt,name=delimiter,enum=pfs.Delimiter" json:"delimiter,omitempty"`
+}
+
+func (m *PutBlockRequest) Reset()                    { *m = PutBlockRequest{} }
+func (m *PutBlockRequest) String() string            { return proto.CompactTextString(m) }
+func (*PutBlockRequest) ProtoMessage()               {}
+func (*PutBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{42} }
 
 type GetBlockRequest struct {
 	Block       *Block `protobuf:"bytes,1,opt,name=block" json:"block,omitempty"`
@@ -885,7 +1127,7 @@ type GetBlockRequest struct {
 func (m *GetBlockRequest) Reset()                    { *m = GetBlockRequest{} }
 func (m *GetBlockRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetBlockRequest) ProtoMessage()               {}
-func (*GetBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
+func (*GetBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{43} }
 
 func (m *GetBlockRequest) GetBlock() *Block {
 	if m != nil {
@@ -901,7 +1143,7 @@ type DeleteBlockRequest struct {
 func (m *DeleteBlockRequest) Reset()                    { *m = DeleteBlockRequest{} }
 func (m *DeleteBlockRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteBlockRequest) ProtoMessage()               {}
-func (*DeleteBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{35} }
+func (*DeleteBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{44} }
 
 func (m *DeleteBlockRequest) GetBlock() *Block {
 	if m != nil {
@@ -917,7 +1159,7 @@ type InspectBlockRequest struct {
 func (m *InspectBlockRequest) Reset()                    { *m = InspectBlockRequest{} }
 func (m *InspectBlockRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectBlockRequest) ProtoMessage()               {}
-func (*InspectBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{36} }
+func (*InspectBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{45} }
 
 func (m *InspectBlockRequest) GetBlock() *Block {
 	if m != nil {
@@ -932,7 +1174,7 @@ type ListBlockRequest struct {
 func (m *ListBlockRequest) Reset()                    { *m = ListBlockRequest{} }
 func (m *ListBlockRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListBlockRequest) ProtoMessage()               {}
-func (*ListBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{37} }
+func (*ListBlockRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{46} }
 
 type InspectDiffRequest struct {
 	Diff *Diff `protobuf:"bytes,1,opt,name=diff" json:"diff,omitempty"`
@@ -941,7 +1183,7 @@ type InspectDiffRequest struct {
 func (m *InspectDiffRequest) Reset()                    { *m = InspectDiffRequest{} }
 func (m *InspectDiffRequest) String() string            { return proto.CompactTextString(m) }
 func (*InspectDiffRequest) ProtoMessage()               {}
-func (*InspectDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{38} }
+func (*InspectDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{47} }
 
 func (m *InspectDiffRequest) GetDiff() *Diff {
 	if m != nil {
@@ -957,7 +1199,7 @@ type ListDiffRequest struct {
 func (m *ListDiffRequest) Reset()                    { *m = ListDiffRequest{} }
 func (m *ListDiffRequest) String() string            { return proto.CompactTextString(m) }
 func (*ListDiffRequest) ProtoMessage()               {}
-func (*ListDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{39} }
+func (*ListDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{48} }
 
 type DeleteDiffRequest struct {
 	Diff *Diff `protobuf:"bytes,1,opt,name=diff" json:"diff,omitempty"`
@@ -966,7 +1208,7 @@ type DeleteDiffRequest struct {
 func (m *DeleteDiffRequest) Reset()                    { *m = DeleteDiffRequest{} }
 func (m *DeleteDiffRequest) String() string            { return proto.CompactTextString(m) }
 func (*DeleteDiffRequest) ProtoMessage()               {}
-func (*DeleteDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{40} }
+func (*DeleteDiffRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{49} }
 
 func (m *DeleteDiffRequest) GetDiff() *Diff {
 	if m != nil {
@@ -978,6 +1220,8 @@ func (m *DeleteDiffRequest) GetDiff() *Diff {
 func init() {
 	proto.RegisterType((*Repo)(nil), "pfs.Repo")
 	proto.RegisterType((*Commit)(nil), "pfs.Commit")
+	proto.RegisterType((*Commits)(nil), "pfs.Commits")
+	proto.RegisterType((*Branches)(nil), "pfs.Branches")
 	proto.RegisterType((*File)(nil), "pfs.File")
 	proto.RegisterType((*Block)(nil), "pfs.Block")
 	proto.RegisterType((*Diff)(nil), "pfs.Diff")
@@ -1000,16 +1244,23 @@ func init() {
 	proto.RegisterType((*ListRepoRequest)(nil), "pfs.ListRepoRequest")
 	proto.RegisterType((*DeleteRepoRequest)(nil), "pfs.DeleteRepoRequest")
 	proto.RegisterType((*StartCommitRequest)(nil), "pfs.StartCommitRequest")
+	proto.RegisterType((*ForkCommitRequest)(nil), "pfs.ForkCommitRequest")
 	proto.RegisterType((*FinishCommitRequest)(nil), "pfs.FinishCommitRequest")
+	proto.RegisterType((*ArchiveCommitRequest)(nil), "pfs.ArchiveCommitRequest")
 	proto.RegisterType((*InspectCommitRequest)(nil), "pfs.InspectCommitRequest")
 	proto.RegisterType((*ListCommitRequest)(nil), "pfs.ListCommitRequest")
 	proto.RegisterType((*ListBranchRequest)(nil), "pfs.ListBranchRequest")
 	proto.RegisterType((*DeleteCommitRequest)(nil), "pfs.DeleteCommitRequest")
+	proto.RegisterType((*FlushCommitRequest)(nil), "pfs.FlushCommitRequest")
+	proto.RegisterType((*DiffMethod)(nil), "pfs.DiffMethod")
 	proto.RegisterType((*GetFileRequest)(nil), "pfs.GetFileRequest")
 	proto.RegisterType((*PutFileRequest)(nil), "pfs.PutFileRequest")
 	proto.RegisterType((*InspectFileRequest)(nil), "pfs.InspectFileRequest")
 	proto.RegisterType((*ListFileRequest)(nil), "pfs.ListFileRequest")
 	proto.RegisterType((*DeleteFileRequest)(nil), "pfs.DeleteFileRequest")
+	proto.RegisterType((*SquashCommitRequest)(nil), "pfs.SquashCommitRequest")
+	proto.RegisterType((*ReplayCommitRequest)(nil), "pfs.ReplayCommitRequest")
+	proto.RegisterType((*PutBlockRequest)(nil), "pfs.PutBlockRequest")
 	proto.RegisterType((*GetBlockRequest)(nil), "pfs.GetBlockRequest")
 	proto.RegisterType((*DeleteBlockRequest)(nil), "pfs.DeleteBlockRequest")
 	proto.RegisterType((*InspectBlockRequest)(nil), "pfs.InspectBlockRequest")
@@ -1019,6 +1270,8 @@ func init() {
 	proto.RegisterType((*DeleteDiffRequest)(nil), "pfs.DeleteDiffRequest")
 	proto.RegisterEnum("pfs.CommitType", CommitType_name, CommitType_value)
 	proto.RegisterEnum("pfs.FileType", FileType_name, FileType_value)
+	proto.RegisterEnum("pfs.CommitStatus", CommitStatus_name, CommitStatus_value)
+	proto.RegisterEnum("pfs.Delimiter", Delimiter_name, Delimiter_value)
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1027,7 +1280,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for API service
 
@@ -1045,16 +1298,26 @@ type APIClient interface {
 	// Commit rpcs
 	// StartCommit creates a new write commit from a parent commit.
 	StartCommit(ctx context.Context, in *StartCommitRequest, opts ...grpc.CallOption) (*Commit, error)
+	// Fork creates a commit on a new branch.
+	ForkCommit(ctx context.Context, in *ForkCommitRequest, opts ...grpc.CallOption) (*Commit, error)
 	// FinishCommit turns a write commit into a read commit.
 	FinishCommit(ctx context.Context, in *FinishCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	// ArchiveCommit marks commits as archived, it will be excluded from ListCommit.
+	ArchiveCommit(ctx context.Context, in *ArchiveCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
 	// InspectCommit returns the info about a commit.
 	InspectCommit(ctx context.Context, in *InspectCommitRequest, opts ...grpc.CallOption) (*CommitInfo, error)
 	// ListCommit returns info about all commits.
 	ListCommit(ctx context.Context, in *ListCommitRequest, opts ...grpc.CallOption) (*CommitInfos, error)
 	// DeleteCommit deletes a commit.
 	DeleteCommit(ctx context.Context, in *DeleteCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	// FlushCommit waits for downstream commits to finish
+	FlushCommit(ctx context.Context, in *FlushCommitRequest, opts ...grpc.CallOption) (*CommitInfos, error)
 	// ListBranch returns info about the heads of branches.
-	ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*CommitInfos, error)
+	ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*Branches, error)
+	// Squash returns the head of the commit of the merge
+	SquashCommit(ctx context.Context, in *SquashCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	// Replay returns the head of the commit of the merge
+	ReplayCommit(ctx context.Context, in *ReplayCommitRequest, opts ...grpc.CallOption) (*Commits, error)
 	// File rpcs
 	// PutFile writes the specified file to pfs.
 	PutFile(ctx context.Context, opts ...grpc.CallOption) (API_PutFileClient, error)
@@ -1066,6 +1329,10 @@ type APIClient interface {
 	ListFile(ctx context.Context, in *ListFileRequest, opts ...grpc.CallOption) (*FileInfos, error)
 	// DeleteFile deletes a file.
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	// DeleteAll deletes everything
+	DeleteAll(ctx context.Context, in *google_protobuf1.Empty, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
+	// ArchiveAll archives everything
+	ArchiveAll(ctx context.Context, in *google_protobuf1.Empty, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
 }
 
 type aPIClient struct {
@@ -1121,9 +1388,27 @@ func (c *aPIClient) StartCommit(ctx context.Context, in *StartCommitRequest, opt
 	return out, nil
 }
 
+func (c *aPIClient) ForkCommit(ctx context.Context, in *ForkCommitRequest, opts ...grpc.CallOption) (*Commit, error) {
+	out := new(Commit)
+	err := grpc.Invoke(ctx, "/pfs.API/ForkCommit", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *aPIClient) FinishCommit(ctx context.Context, in *FinishCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
 	out := new(google_protobuf1.Empty)
 	err := grpc.Invoke(ctx, "/pfs.API/FinishCommit", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ArchiveCommit(ctx context.Context, in *ArchiveCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
+	err := grpc.Invoke(ctx, "/pfs.API/ArchiveCommit", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1157,9 +1442,36 @@ func (c *aPIClient) DeleteCommit(ctx context.Context, in *DeleteCommitRequest, o
 	return out, nil
 }
 
-func (c *aPIClient) ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*CommitInfos, error) {
+func (c *aPIClient) FlushCommit(ctx context.Context, in *FlushCommitRequest, opts ...grpc.CallOption) (*CommitInfos, error) {
 	out := new(CommitInfos)
+	err := grpc.Invoke(ctx, "/pfs.API/FlushCommit", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*Branches, error) {
+	out := new(Branches)
 	err := grpc.Invoke(ctx, "/pfs.API/ListBranch", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) SquashCommit(ctx context.Context, in *SquashCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
+	err := grpc.Invoke(ctx, "/pfs.API/SquashCommit", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ReplayCommit(ctx context.Context, in *ReplayCommitRequest, opts ...grpc.CallOption) (*Commits, error) {
+	out := new(Commits)
+	err := grpc.Invoke(ctx, "/pfs.API/ReplayCommit", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1259,6 +1571,24 @@ func (c *aPIClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts 
 	return out, nil
 }
 
+func (c *aPIClient) DeleteAll(ctx context.Context, in *google_protobuf1.Empty, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
+	err := grpc.Invoke(ctx, "/pfs.API/DeleteAll", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *aPIClient) ArchiveAll(ctx context.Context, in *google_protobuf1.Empty, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
+	out := new(google_protobuf1.Empty)
+	err := grpc.Invoke(ctx, "/pfs.API/ArchiveAll", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for API service
 
 type APIServer interface {
@@ -1275,16 +1605,26 @@ type APIServer interface {
 	// Commit rpcs
 	// StartCommit creates a new write commit from a parent commit.
 	StartCommit(context.Context, *StartCommitRequest) (*Commit, error)
+	// Fork creates a commit on a new branch.
+	ForkCommit(context.Context, *ForkCommitRequest) (*Commit, error)
 	// FinishCommit turns a write commit into a read commit.
 	FinishCommit(context.Context, *FinishCommitRequest) (*google_protobuf1.Empty, error)
+	// ArchiveCommit marks commits as archived, it will be excluded from ListCommit.
+	ArchiveCommit(context.Context, *ArchiveCommitRequest) (*google_protobuf1.Empty, error)
 	// InspectCommit returns the info about a commit.
 	InspectCommit(context.Context, *InspectCommitRequest) (*CommitInfo, error)
 	// ListCommit returns info about all commits.
 	ListCommit(context.Context, *ListCommitRequest) (*CommitInfos, error)
 	// DeleteCommit deletes a commit.
 	DeleteCommit(context.Context, *DeleteCommitRequest) (*google_protobuf1.Empty, error)
+	// FlushCommit waits for downstream commits to finish
+	FlushCommit(context.Context, *FlushCommitRequest) (*CommitInfos, error)
 	// ListBranch returns info about the heads of branches.
-	ListBranch(context.Context, *ListBranchRequest) (*CommitInfos, error)
+	ListBranch(context.Context, *ListBranchRequest) (*Branches, error)
+	// Squash returns the head of the commit of the merge
+	SquashCommit(context.Context, *SquashCommitRequest) (*google_protobuf1.Empty, error)
+	// Replay returns the head of the commit of the merge
+	ReplayCommit(context.Context, *ReplayCommitRequest) (*Commits, error)
 	// File rpcs
 	// PutFile writes the specified file to pfs.
 	PutFile(API_PutFileServer) error
@@ -1296,6 +1636,10 @@ type APIServer interface {
 	ListFile(context.Context, *ListFileRequest) (*FileInfos, error)
 	// DeleteFile deletes a file.
 	DeleteFile(context.Context, *DeleteFileRequest) (*google_protobuf1.Empty, error)
+	// DeleteAll deletes everything
+	DeleteAll(context.Context, *google_protobuf1.Empty) (*google_protobuf1.Empty, error)
+	// ArchiveAll archives everything
+	ArchiveAll(context.Context, *google_protobuf1.Empty) (*google_protobuf1.Empty, error)
 }
 
 func RegisterAPIServer(s *grpc.Server, srv APIServer) {
@@ -1392,6 +1736,24 @@ func _API_StartCommit_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_ForkCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ForkCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ForkCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/ForkCommit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ForkCommit(ctx, req.(*ForkCommitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _API_FinishCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FinishCommitRequest)
 	if err := dec(in); err != nil {
@@ -1406,6 +1768,24 @@ func _API_FinishCommit_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServer).FinishCommit(ctx, req.(*FinishCommitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ArchiveCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ArchiveCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/ArchiveCommit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ArchiveCommit(ctx, req.(*ArchiveCommitRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1464,6 +1844,24 @@ func _API_DeleteCommit_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_FlushCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FlushCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).FlushCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/FlushCommit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).FlushCommit(ctx, req.(*FlushCommitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _API_ListBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListBranchRequest)
 	if err := dec(in); err != nil {
@@ -1478,6 +1876,42 @@ func _API_ListBranch_Handler(srv interface{}, ctx context.Context, dec func(inte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(APIServer).ListBranch(ctx, req.(*ListBranchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_SquashCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SquashCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).SquashCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/SquashCommit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).SquashCommit(ctx, req.(*SquashCommitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ReplayCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReplayCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ReplayCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/ReplayCommit",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ReplayCommit(ctx, req.(*ReplayCommitRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1583,6 +2017,42 @@ func _API_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _API_DeleteAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(google_protobuf1.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).DeleteAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/DeleteAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).DeleteAll(ctx, req.(*google_protobuf1.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _API_ArchiveAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(google_protobuf1.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(APIServer).ArchiveAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/pfs.API/ArchiveAll",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(APIServer).ArchiveAll(ctx, req.(*google_protobuf1.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _API_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pfs.API",
 	HandlerType: (*APIServer)(nil),
@@ -1608,8 +2078,16 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			Handler:    _API_StartCommit_Handler,
 		},
 		{
+			MethodName: "ForkCommit",
+			Handler:    _API_ForkCommit_Handler,
+		},
+		{
 			MethodName: "FinishCommit",
 			Handler:    _API_FinishCommit_Handler,
+		},
+		{
+			MethodName: "ArchiveCommit",
+			Handler:    _API_ArchiveCommit_Handler,
 		},
 		{
 			MethodName: "InspectCommit",
@@ -1624,8 +2102,20 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			Handler:    _API_DeleteCommit_Handler,
 		},
 		{
+			MethodName: "FlushCommit",
+			Handler:    _API_FlushCommit_Handler,
+		},
+		{
 			MethodName: "ListBranch",
 			Handler:    _API_ListBranch_Handler,
+		},
+		{
+			MethodName: "SquashCommit",
+			Handler:    _API_SquashCommit_Handler,
+		},
+		{
+			MethodName: "ReplayCommit",
+			Handler:    _API_ReplayCommit_Handler,
 		},
 		{
 			MethodName: "InspectFile",
@@ -1638,6 +2128,14 @@ var _API_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFile",
 			Handler:    _API_DeleteFile_Handler,
+		},
+		{
+			MethodName: "DeleteAll",
+			Handler:    _API_DeleteAll_Handler,
+		},
+		{
+			MethodName: "ArchiveAll",
+			Handler:    _API_ArchiveAll_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -1652,631 +2150,7 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-}
-
-// Client API for InternalAPI service
-
-type InternalAPIClient interface {
-	// Repo rpcs
-	// CreateRepo creates a new repo.
-	// An error is returned if the repo already exists.
-	CreateRepo(ctx context.Context, in *CreateRepoRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-	// InspectRepo returns info about a repo.
-	InspectRepo(ctx context.Context, in *InspectRepoRequest, opts ...grpc.CallOption) (*RepoInfo, error)
-	// ListRepo returns info about all repos.
-	ListRepo(ctx context.Context, in *ListRepoRequest, opts ...grpc.CallOption) (*RepoInfos, error)
-	// DeleteRepo deletes a repo.
-	DeleteRepo(ctx context.Context, in *DeleteRepoRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-	// Commit rpcs
-	// StartCommit creates a new write commit from a parent commit.
-	StartCommit(ctx context.Context, in *StartCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-	// FinishCommit turns a write commit into a read commit.
-	FinishCommit(ctx context.Context, in *FinishCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-	// InspectCommit returns the info about a commit.
-	InspectCommit(ctx context.Context, in *InspectCommitRequest, opts ...grpc.CallOption) (*CommitInfo, error)
-	// ListCommit returns info about all commits.
-	ListCommit(ctx context.Context, in *ListCommitRequest, opts ...grpc.CallOption) (*CommitInfos, error)
-	// DeleteCommit deletes a commit.
-	DeleteCommit(ctx context.Context, in *DeleteCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-	// ListBranch returns info about the heads of branches.
-	ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*CommitInfos, error)
-	// File rpcs
-	// PutFile writes the specified file to pfs.
-	PutFile(ctx context.Context, opts ...grpc.CallOption) (InternalAPI_PutFileClient, error)
-	// GetFile returns a byte stream of the contents of the file.
-	GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (InternalAPI_GetFileClient, error)
-	// InspectFile returns info about a file.
-	InspectFile(ctx context.Context, in *InspectFileRequest, opts ...grpc.CallOption) (*FileInfo, error)
-	// ListFile returns info about all files.
-	ListFile(ctx context.Context, in *ListFileRequest, opts ...grpc.CallOption) (*FileInfos, error)
-	// DeleteFile deletes a file.
-	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error)
-}
-
-type internalAPIClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewInternalAPIClient(cc *grpc.ClientConn) InternalAPIClient {
-	return &internalAPIClient{cc}
-}
-
-func (c *internalAPIClient) CreateRepo(ctx context.Context, in *CreateRepoRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/CreateRepo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) InspectRepo(ctx context.Context, in *InspectRepoRequest, opts ...grpc.CallOption) (*RepoInfo, error) {
-	out := new(RepoInfo)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/InspectRepo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) ListRepo(ctx context.Context, in *ListRepoRequest, opts ...grpc.CallOption) (*RepoInfos, error) {
-	out := new(RepoInfos)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/ListRepo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) DeleteRepo(ctx context.Context, in *DeleteRepoRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/DeleteRepo", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) StartCommit(ctx context.Context, in *StartCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/StartCommit", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) FinishCommit(ctx context.Context, in *FinishCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/FinishCommit", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) InspectCommit(ctx context.Context, in *InspectCommitRequest, opts ...grpc.CallOption) (*CommitInfo, error) {
-	out := new(CommitInfo)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/InspectCommit", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) ListCommit(ctx context.Context, in *ListCommitRequest, opts ...grpc.CallOption) (*CommitInfos, error) {
-	out := new(CommitInfos)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/ListCommit", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) DeleteCommit(ctx context.Context, in *DeleteCommitRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/DeleteCommit", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) ListBranch(ctx context.Context, in *ListBranchRequest, opts ...grpc.CallOption) (*CommitInfos, error) {
-	out := new(CommitInfos)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/ListBranch", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) PutFile(ctx context.Context, opts ...grpc.CallOption) (InternalAPI_PutFileClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_InternalAPI_serviceDesc.Streams[0], c.cc, "/pfs.InternalAPI/PutFile", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &internalAPIPutFileClient{stream}
-	return x, nil
-}
-
-type InternalAPI_PutFileClient interface {
-	Send(*PutFileRequest) error
-	CloseAndRecv() (*google_protobuf1.Empty, error)
-	grpc.ClientStream
-}
-
-type internalAPIPutFileClient struct {
-	grpc.ClientStream
-}
-
-func (x *internalAPIPutFileClient) Send(m *PutFileRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *internalAPIPutFileClient) CloseAndRecv() (*google_protobuf1.Empty, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(google_protobuf1.Empty)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *internalAPIClient) GetFile(ctx context.Context, in *GetFileRequest, opts ...grpc.CallOption) (InternalAPI_GetFileClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_InternalAPI_serviceDesc.Streams[1], c.cc, "/pfs.InternalAPI/GetFile", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &internalAPIGetFileClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type InternalAPI_GetFileClient interface {
-	Recv() (*google_protobuf3.BytesValue, error)
-	grpc.ClientStream
-}
-
-type internalAPIGetFileClient struct {
-	grpc.ClientStream
-}
-
-func (x *internalAPIGetFileClient) Recv() (*google_protobuf3.BytesValue, error) {
-	m := new(google_protobuf3.BytesValue)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *internalAPIClient) InspectFile(ctx context.Context, in *InspectFileRequest, opts ...grpc.CallOption) (*FileInfo, error) {
-	out := new(FileInfo)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/InspectFile", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) ListFile(ctx context.Context, in *ListFileRequest, opts ...grpc.CallOption) (*FileInfos, error) {
-	out := new(FileInfos)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/ListFile", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *internalAPIClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*google_protobuf1.Empty, error) {
-	out := new(google_protobuf1.Empty)
-	err := grpc.Invoke(ctx, "/pfs.InternalAPI/DeleteFile", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Server API for InternalAPI service
-
-type InternalAPIServer interface {
-	// Repo rpcs
-	// CreateRepo creates a new repo.
-	// An error is returned if the repo already exists.
-	CreateRepo(context.Context, *CreateRepoRequest) (*google_protobuf1.Empty, error)
-	// InspectRepo returns info about a repo.
-	InspectRepo(context.Context, *InspectRepoRequest) (*RepoInfo, error)
-	// ListRepo returns info about all repos.
-	ListRepo(context.Context, *ListRepoRequest) (*RepoInfos, error)
-	// DeleteRepo deletes a repo.
-	DeleteRepo(context.Context, *DeleteRepoRequest) (*google_protobuf1.Empty, error)
-	// Commit rpcs
-	// StartCommit creates a new write commit from a parent commit.
-	StartCommit(context.Context, *StartCommitRequest) (*google_protobuf1.Empty, error)
-	// FinishCommit turns a write commit into a read commit.
-	FinishCommit(context.Context, *FinishCommitRequest) (*google_protobuf1.Empty, error)
-	// InspectCommit returns the info about a commit.
-	InspectCommit(context.Context, *InspectCommitRequest) (*CommitInfo, error)
-	// ListCommit returns info about all commits.
-	ListCommit(context.Context, *ListCommitRequest) (*CommitInfos, error)
-	// DeleteCommit deletes a commit.
-	DeleteCommit(context.Context, *DeleteCommitRequest) (*google_protobuf1.Empty, error)
-	// ListBranch returns info about the heads of branches.
-	ListBranch(context.Context, *ListBranchRequest) (*CommitInfos, error)
-	// File rpcs
-	// PutFile writes the specified file to pfs.
-	PutFile(InternalAPI_PutFileServer) error
-	// GetFile returns a byte stream of the contents of the file.
-	GetFile(*GetFileRequest, InternalAPI_GetFileServer) error
-	// InspectFile returns info about a file.
-	InspectFile(context.Context, *InspectFileRequest) (*FileInfo, error)
-	// ListFile returns info about all files.
-	ListFile(context.Context, *ListFileRequest) (*FileInfos, error)
-	// DeleteFile deletes a file.
-	DeleteFile(context.Context, *DeleteFileRequest) (*google_protobuf1.Empty, error)
-}
-
-func RegisterInternalAPIServer(s *grpc.Server, srv InternalAPIServer) {
-	s.RegisterService(&_InternalAPI_serviceDesc, srv)
-}
-
-func _InternalAPI_CreateRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRepoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).CreateRepo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/CreateRepo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).CreateRepo(ctx, req.(*CreateRepoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_InspectRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InspectRepoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).InspectRepo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/InspectRepo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).InspectRepo(ctx, req.(*InspectRepoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_ListRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListRepoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).ListRepo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/ListRepo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).ListRepo(ctx, req.(*ListRepoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_DeleteRepo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteRepoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).DeleteRepo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/DeleteRepo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).DeleteRepo(ctx, req.(*DeleteRepoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_StartCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartCommitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).StartCommit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/StartCommit",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).StartCommit(ctx, req.(*StartCommitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_FinishCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FinishCommitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).FinishCommit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/FinishCommit",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).FinishCommit(ctx, req.(*FinishCommitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_InspectCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InspectCommitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).InspectCommit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/InspectCommit",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).InspectCommit(ctx, req.(*InspectCommitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_ListCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListCommitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).ListCommit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/ListCommit",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).ListCommit(ctx, req.(*ListCommitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_DeleteCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteCommitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).DeleteCommit(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/DeleteCommit",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).DeleteCommit(ctx, req.(*DeleteCommitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_ListBranch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListBranchRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).ListBranch(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/ListBranch",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).ListBranch(ctx, req.(*ListBranchRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_PutFile_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(InternalAPIServer).PutFile(&internalAPIPutFileServer{stream})
-}
-
-type InternalAPI_PutFileServer interface {
-	SendAndClose(*google_protobuf1.Empty) error
-	Recv() (*PutFileRequest, error)
-	grpc.ServerStream
-}
-
-type internalAPIPutFileServer struct {
-	grpc.ServerStream
-}
-
-func (x *internalAPIPutFileServer) SendAndClose(m *google_protobuf1.Empty) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *internalAPIPutFileServer) Recv() (*PutFileRequest, error) {
-	m := new(PutFileRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _InternalAPI_GetFile_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetFileRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(InternalAPIServer).GetFile(m, &internalAPIGetFileServer{stream})
-}
-
-type InternalAPI_GetFileServer interface {
-	Send(*google_protobuf3.BytesValue) error
-	grpc.ServerStream
-}
-
-type internalAPIGetFileServer struct {
-	grpc.ServerStream
-}
-
-func (x *internalAPIGetFileServer) Send(m *google_protobuf3.BytesValue) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _InternalAPI_InspectFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InspectFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).InspectFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/InspectFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).InspectFile(ctx, req.(*InspectFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_ListFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).ListFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/ListFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).ListFile(ctx, req.(*ListFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _InternalAPI_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteFileRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(InternalAPIServer).DeleteFile(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pfs.InternalAPI/DeleteFile",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InternalAPIServer).DeleteFile(ctx, req.(*DeleteFileRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _InternalAPI_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "pfs.InternalAPI",
-	HandlerType: (*InternalAPIServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "CreateRepo",
-			Handler:    _InternalAPI_CreateRepo_Handler,
-		},
-		{
-			MethodName: "InspectRepo",
-			Handler:    _InternalAPI_InspectRepo_Handler,
-		},
-		{
-			MethodName: "ListRepo",
-			Handler:    _InternalAPI_ListRepo_Handler,
-		},
-		{
-			MethodName: "DeleteRepo",
-			Handler:    _InternalAPI_DeleteRepo_Handler,
-		},
-		{
-			MethodName: "StartCommit",
-			Handler:    _InternalAPI_StartCommit_Handler,
-		},
-		{
-			MethodName: "FinishCommit",
-			Handler:    _InternalAPI_FinishCommit_Handler,
-		},
-		{
-			MethodName: "InspectCommit",
-			Handler:    _InternalAPI_InspectCommit_Handler,
-		},
-		{
-			MethodName: "ListCommit",
-			Handler:    _InternalAPI_ListCommit_Handler,
-		},
-		{
-			MethodName: "DeleteCommit",
-			Handler:    _InternalAPI_DeleteCommit_Handler,
-		},
-		{
-			MethodName: "ListBranch",
-			Handler:    _InternalAPI_ListBranch_Handler,
-		},
-		{
-			MethodName: "InspectFile",
-			Handler:    _InternalAPI_InspectFile_Handler,
-		},
-		{
-			MethodName: "ListFile",
-			Handler:    _InternalAPI_ListFile_Handler,
-		},
-		{
-			MethodName: "DeleteFile",
-			Handler:    _InternalAPI_DeleteFile_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "PutFile",
-			Handler:       _InternalAPI_PutFile_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "GetFile",
-			Handler:       _InternalAPI_GetFile_Handler,
-			ServerStreams: true,
-		},
-	},
+	Metadata: fileDescriptor0,
 }
 
 // Client API for BlockAPI service
@@ -2311,7 +2185,7 @@ func (c *blockAPIClient) PutBlock(ctx context.Context, opts ...grpc.CallOption) 
 }
 
 type BlockAPI_PutBlockClient interface {
-	Send(*google_protobuf3.BytesValue) error
+	Send(*PutBlockRequest) error
 	CloseAndRecv() (*BlockRefs, error)
 	grpc.ClientStream
 }
@@ -2320,7 +2194,7 @@ type blockAPIPutBlockClient struct {
 	grpc.ClientStream
 }
 
-func (x *blockAPIPutBlockClient) Send(m *google_protobuf3.BytesValue) error {
+func (x *blockAPIPutBlockClient) Send(m *PutBlockRequest) error {
 	return x.ClientStream.SendMsg(m)
 }
 
@@ -2477,7 +2351,7 @@ func _BlockAPI_PutBlock_Handler(srv interface{}, stream grpc.ServerStream) error
 
 type BlockAPI_PutBlockServer interface {
 	SendAndClose(*BlockRefs) error
-	Recv() (*google_protobuf3.BytesValue, error)
+	Recv() (*PutBlockRequest, error)
 	grpc.ServerStream
 }
 
@@ -2489,8 +2363,8 @@ func (x *blockAPIPutBlockServer) SendAndClose(m *BlockRefs) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *blockAPIPutBlockServer) Recv() (*google_protobuf3.BytesValue, error) {
-	m := new(google_protobuf3.BytesValue)
+func (x *blockAPIPutBlockServer) Recv() (*PutBlockRequest, error) {
+	m := new(PutBlockRequest)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -2693,125 +2567,151 @@ var _BlockAPI_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
+	Metadata: fileDescriptor0,
 }
 
+func init() { proto.RegisterFile("client/pfs/pfs.proto", fileDescriptor0) }
+
 var fileDescriptor0 = []byte{
-	// 1857 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xec, 0x59, 0x4b, 0x73, 0x1b, 0xc5,
-	0x13, 0x8f, 0x5e, 0xd6, 0xaa, 0x65, 0xc9, 0xf2, 0xd8, 0xc9, 0xdf, 0x59, 0xe7, 0x4f, 0xcc, 0x26,
-	0x40, 0x2a, 0x15, 0xec, 0x94, 0x42, 0x1e, 0xe5, 0x14, 0x04, 0x3f, 0x94, 0x44, 0x54, 0x9c, 0xa4,
-	0x36, 0x06, 0x8a, 0x93, 0x6b, 0x25, 0xad, 0xac, 0xad, 0xac, 0x56, 0x62, 0x77, 0x45, 0xca, 0x1c,
-	0x38, 0x70, 0x0b, 0x07, 0x2e, 0x1c, 0x29, 0x0e, 0x54, 0x71, 0xe6, 0xc0, 0x91, 0x4f, 0x02, 0x5f,
-	0x81, 0x4f, 0xc1, 0x4c, 0xcf, 0xcc, 0x6a, 0x56, 0x92, 0xa5, 0x55, 0xa8, 0x14, 0x07, 0x72, 0x80,
-	0xcc, 0xa3, 0xbb, 0xa7, 0xfb, 0x37, 0xbf, 0xee, 0x69, 0xad, 0x61, 0xb5, 0xe9, 0x3a, 0xb6, 0x17,
-	0x6e, 0xf5, 0xdb, 0x01, 0xfb, 0x6f, 0xb3, 0xef, 0xf7, 0xc2, 0x1e, 0xc9, 0xd0, 0xa1, 0x7e, 0xe1,
-	0xb8, 0xd7, 0x3b, 0x76, 0xed, 0x2d, 0xab, 0xef, 0x6c, 0x59, 0x9e, 0xd7, 0x0b, 0xad, 0xd0, 0xe9,
-	0x79, 0x42, 0x44, 0x5f, 0x17, 0xbb, 0x38, 0x6b, 0x0c, 0xda, 0x5b, 0x76, 0xb7, 0x1f, 0x9e, 0x88,
-	0xcd, 0x8b, 0xa3, 0x9b, 0xa1, 0xd3, 0xb5, 0x83, 0xd0, 0xea, 0xf6, 0x85, 0xc0, 0x5b, 0xa3, 0x02,
-	0x2f, 0x7c, 0xab, 0xdf, 0xb7, 0x7d, 0x69, 0xfd, 0x82, 0x74, 0xeb, 0xf9, 0xf1, 0x56, 0xd0, 0xb1,
-	0xfc, 0x16, 0xff, 0x3f, 0xdf, 0x35, 0x74, 0xc8, 0x9a, 0x76, 0xbf, 0x47, 0x08, 0x64, 0x3d, 0xab,
-	0x6b, 0xaf, 0xa5, 0x36, 0x52, 0x57, 0x0a, 0x26, 0x8e, 0x8d, 0xdb, 0xb0, 0xb0, 0xd7, 0xeb, 0x76,
-	0x9d, 0x90, 0xfc, 0x1f, 0xb2, 0x3e, 0x95, 0xc2, 0xdd, 0x62, 0xb5, 0xb0, 0xc9, 0xc2, 0x63, 0x6a,
-	0x26, 0x2e, 0x93, 0x32, 0xa4, 0x9d, 0xd6, 0x5a, 0x1a, 0x55, 0xe9, 0xc8, 0xb8, 0x07, 0xd9, 0xfb,
-	0x8e, 0x6b, 0x93, 0x4b, 0xb0, 0xd0, 0x44, 0x03, 0x42, 0xb1, 0x88, 0x8a, 0xdc, 0xa6, 0x29, 0xb6,
-	0xd8, 0xc9, 0x7d, 0x2b, 0xec, 0x08, 0x75, 0x1c, 0x1b, 0xeb, 0x90, 0xdb, 0x75, 0x7b, 0xcd, 0xe7,
-	0x6c, 0xb3, 0x63, 0x05, 0x1d, 0xe9, 0x16, 0x1b, 0x1b, 0x3b, 0x90, 0xdd, 0x77, 0xda, 0xed, 0x64,
-	0xd6, 0x57, 0x21, 0x87, 0xe1, 0xa2, 0xf9, 0xac, 0xc9, 0x27, 0xc6, 0x37, 0xa0, 0x31, 0xf7, 0xeb,
-	0x5e, 0xbb, 0x37, 0x2b, 0xb6, 0x0f, 0x20, 0xdf, 0xf4, 0x6d, 0x2b, 0xb4, 0xb9, 0x89, 0x62, 0x55,
-	0xdf, 0xe4, 0x80, 0x6f, 0x4a, 0xc0, 0x37, 0x0f, 0xe5, 0x8d, 0x98, 0x52, 0x94, 0x1a, 0x85, 0xc0,
-	0xf9, 0xda, 0x3e, 0x6a, 0x9c, 0x84, 0x76, 0xb0, 0x96, 0xc1, 0xb3, 0x0b, 0x6c, 0x65, 0x97, 0x2d,
-	0x50, 0x64, 0x0b, 0xf2, 0xfc, 0x80, 0x5c, 0x85, 0x02, 0x3b, 0xe9, 0xc8, 0xa1, 0x33, 0xea, 0x45,
-	0x86, 0x9e, 0x51, 0x8a, 0xbc, 0x60, 0x22, 0xa6, 0xe6, 0x8b, 0x91, 0xf1, 0x47, 0x1a, 0x80, 0x47,
-	0x88, 0xbe, 0x27, 0x82, 0xe0, 0x1c, 0x2c, 0x34, 0x7c, 0xcb, 0x6b, 0x4a, 0x88, 0xc5, 0x8c, 0x5c,
-	0x87, 0x22, 0x97, 0x38, 0x0a, 0x4f, 0xfa, 0x36, 0x3a, 0x59, 0xae, 0x2e, 0x29, 0x16, 0x0e, 0xe9,
-	0xb2, 0x09, 0xcd, 0x68, 0x4c, 0x35, 0x4a, 0x7d, 0xcb, 0xa7, 0x64, 0x3a, 0x12, 0xa7, 0x66, 0xc7,
-	0x4f, 0x5d, 0xe4, 0x12, 0x82, 0x38, 0x14, 0x3d, 0x8a, 0x8c, 0xcf, 0xd0, 0xcb, 0xcd, 0x46, 0x4f,
-	0x88, 0x92, 0x5b, 0xa0, 0xb5, 0x1d, 0xcf, 0x09, 0x3a, 0x54, 0x6d, 0x61, 0xa6, 0x5a, 0x24, 0x3b,
-	0x82, 0x7a, 0x7e, 0x04, 0x75, 0x72, 0x01, 0x0a, 0x4d, 0x1a, 0xb9, 0xed, 0xba, 0xd4, 0xae, 0x46,
-	0x77, 0x35, 0x73, 0xb8, 0x40, 0x49, 0x5b, 0x1c, 0x22, 0x1b, 0x28, 0xe8, 0x28, 0xf7, 0xa2, 0xa2,
-	0x83, 0x37, 0x23, 0xd0, 0xc1, 0xbb, 0x79, 0x99, 0x06, 0x8d, 0xd1, 0x5e, 0xb2, 0xaa, 0x4d, 0xc7,
-	0x31, 0x56, 0xb1, 0x4d, 0x13, 0x97, 0xd9, 0x9d, 0xb3, 0x7f, 0x39, 0xf2, 0x69, 0x44, 0xbe, 0x14,
-	0xc9, 0x20, 0xee, 0x5a, 0x5b, 0x8c, 0x66, 0x70, 0x89, 0x81, 0xd5, 0xed, 0xb5, 0x9c, 0xb6, 0x43,
-	0x83, 0xca, 0xce, 0x06, 0x4b, 0xca, 0xd2, 0xab, 0x59, 0x12, 0x01, 0x46, 0xea, 0xb9, 0xf1, 0xeb,
-	0x2c, 0x73, 0x99, 0x03, 0xa9, 0xf5, 0x0e, 0x68, 0xcd, 0x8e, 0xe3, 0xb6, 0xe8, 0x1d, 0xd3, 0xab,
-	0xc9, 0xc4, 0x63, 0x8b, 0xb6, 0x18, 0xc1, 0x25, 0x14, 0x41, 0x14, 0xec, 0x18, 0xc1, 0xa5, 0x08,
-	0x0f, 0x16, 0x41, 0xa4, 0x8a, 0x2c, 0x2c, 0xd3, 0xf2, 0x8e, 0x6d, 0x96, 0xbc, 0x6e, 0xef, 0x85,
-	0xed, 0x23, 0x8a, 0x34, 0x79, 0x71, 0xc2, 0x56, 0x07, 0xac, 0xc0, 0xc9, 0x94, 0xc6, 0x89, 0x61,
-	0x82, 0x86, 0x25, 0xc3, 0xb4, 0xdb, 0x64, 0x03, 0x72, 0x0d, 0x36, 0x16, 0xe8, 0x03, 0x1e, 0xc6,
-	0x77, 0xf9, 0x06, 0xb9, 0x0c, 0x39, 0x9f, 0x1d, 0x21, 0x72, 0xba, 0xcc, 0x25, 0xe4, 0xc1, 0x26,
-	0xdf, 0x44, 0x67, 0x84, 0x4d, 0x8c, 0x02, 0x75, 0x8f, 0x7c, 0xbb, 0x1d, 0x8b, 0x42, 0x8a, 0x98,
-	0x5a, 0x43, 0x8c, 0x8c, 0xbf, 0xd2, 0xb0, 0xb0, 0x43, 0xdd, 0xf2, 0x5a, 0xe4, 0x1a, 0x40, 0xa4,
-	0x16, 0x4c, 0xd6, 0x2b, 0x34, 0xa2, 0x43, 0x6e, 0x2a, 0xf0, 0xa6, 0x51, 0xf6, 0x3c, 0xca, 0x72,
-	0x63, 0x9b, 0x7b, 0x62, 0xaf, 0xe6, 0x85, 0xfe, 0xc9, 0x10, 0x6e, 0xf2, 0x2e, 0x68, 0xae, 0x15,
-	0x84, 0xe8, 0x5a, 0x66, 0xfc, 0x12, 0xf3, 0x6c, 0x93, 0x01, 0x43, 0x4b, 0x41, 0xcb, 0x76, 0xed,
-	0xd0, 0x46, 0xa6, 0x68, 0xa6, 0x98, 0x91, 0x2a, 0xe4, 0x3b, 0x96, 0xd7, 0x72, 0x29, 0xbf, 0x72,
-	0x78, 0xea, 0x9a, 0x7a, 0xea, 0x43, 0xbe, 0xc5, 0x0f, 0x95, 0x82, 0xfa, 0x5d, 0x28, 0xc5, 0xdc,
-	0x21, 0x15, 0xc8, 0x3c, 0xb7, 0x4f, 0x44, 0xa9, 0x66, 0x43, 0x76, 0x53, 0x5f, 0x59, 0xee, 0x80,
-	0xa3, 0xac, 0x99, 0x7c, 0xb2, 0x9d, 0xbe, 0x93, 0xd2, 0x3f, 0x81, 0x45, 0xd5, 0xea, 0x04, 0xdd,
-	0xcb, 0xaa, 0x6e, 0x74, 0x43, 0x12, 0x28, 0xc5, 0x96, 0xf1, 0x6d, 0x4a, 0x5c, 0x13, 0x26, 0xde,
-	0xec, 0xbb, 0x7f, 0x2d, 0x15, 0xfd, 0x2e, 0x40, 0xe4, 0x43, 0x40, 0xde, 0x97, 0x97, 0xae, 0x50,
-	0x5e, 0x89, 0x00, 0x39, 0xcf, 0x6f, 0x1d, 0x49, 0xff, 0x53, 0x06, 0x34, 0xf6, 0xa4, 0xc9, 0xca,
-	0x41, 0x73, 0xad, 0x1d, 0xab, 0x1c, 0x6c, 0xd3, 0xc4, 0xe5, 0xf1, 0x1a, 0x9c, 0x9e, 0x55, 0x83,
-	0x87, 0xf5, 0x3f, 0x13, 0xab, 0xff, 0x4a, 0x6d, 0xce, 0xbe, 0x5a, 0x6d, 0xce, 0xcd, 0x51, 0x9b,
-	0xe9, 0x69, 0x16, 0xd2, 0x29, 0x10, 0x75, 0x43, 0x8f, 0x22, 0x63, 0x61, 0x0b, 0xae, 0x49, 0x92,
-	0x09, 0xd1, 0x7f, 0x54, 0xd1, 0xf5, 0x07, 0xb0, 0xa8, 0x5a, 0x9d, 0x40, 0xb2, 0xb7, 0xe3, 0x24,
-	0x2b, 0x2a, 0xac, 0x57, 0x19, 0xf6, 0x43, 0x0a, 0x72, 0xcf, 0x58, 0xe3, 0x40, 0x2e, 0x42, 0x11,
-	0x4b, 0x99, 0x37, 0xe8, 0x36, 0xa2, 0xba, 0x04, 0x6c, 0xe9, 0x31, 0xae, 0x50, 0x8b, 0x8b, 0x28,
-	0x40, 0x6b, 0xea, 0xc0, 0x1d, 0x04, 0xa2, 0x46, 0xa1, 0xd2, 0x01, 0x5f, 0x62, 0x22, 0x9c, 0x1c,
-	0xc2, 0x08, 0xe7, 0x52, 0x11, 0xd7, 0x84, 0x95, 0x4b, 0x50, 0xe2, 0x22, 0xd2, 0x4c, 0x16, 0x65,
-	0xb8, 0x9e, 0xb0, 0x63, 0x74, 0x60, 0x79, 0x0f, 0xc9, 0x89, 0xdd, 0x8a, 0xfd, 0xe5, 0x80, 0x62,
-	0xfe, 0x5a, 0xba, 0x19, 0xe3, 0x06, 0x90, 0xba, 0x17, 0xf4, 0xed, 0x66, 0x98, 0xfc, 0x28, 0x63,
-	0x19, 0x96, 0x1e, 0x39, 0x81, 0xaa, 0x61, 0x54, 0x61, 0x79, 0x1f, 0x0b, 0xce, 0x1c, 0x66, 0x7e,
-	0x4d, 0x01, 0x79, 0xc6, 0xb8, 0x27, 0xb8, 0x9d, 0x2c, 0xce, 0x91, 0x8e, 0x94, 0xac, 0x43, 0x41,
-	0x64, 0x0d, 0x5d, 0xe6, 0x69, 0xa0, 0xf1, 0x85, 0x7a, 0x4b, 0x49, 0x90, 0xec, 0x69, 0x09, 0x92,
-	0xbc, 0x79, 0x31, 0xbe, 0x4b, 0xc1, 0xca, 0x7d, 0x64, 0x7d, 0xdc, 0xe3, 0xa4, 0xbd, 0x1a, 0xe7,
-	0xaf, 0x28, 0x99, 0x62, 0x16, 0xcb, 0xba, 0x4c, 0xf2, 0xac, 0xa3, 0x65, 0x69, 0x55, 0xdc, 0xdc,
-	0xfc, 0xce, 0x18, 0xbf, 0xa7, 0x60, 0x99, 0x5d, 0xe1, 0x69, 0xc8, 0x67, 0x26, 0x21, 0x3f, 0xd2,
-	0x55, 0xa6, 0x67, 0x77, 0x95, 0xd7, 0x68, 0x4e, 0xf9, 0xbd, 0xae, 0xac, 0x67, 0x19, 0xb4, 0x1b,
-	0x73, 0x08, 0xd8, 0xbe, 0xa8, 0x66, 0x34, 0x89, 0x2d, 0xd7, 0x15, 0xef, 0x17, 0x1b, 0xb2, 0x57,
-	0x86, 0x57, 0xfc, 0x1c, 0x7f, 0x65, 0x70, 0xc2, 0xb8, 0xc6, 0x7c, 0xdf, 0xc5, 0xab, 0x4c, 0xc8,
-	0xb5, 0x6d, 0x58, 0xe1, 0xfc, 0x7c, 0x05, 0xb0, 0xfe, 0x4c, 0x41, 0xf9, 0x81, 0x1d, 0x62, 0x1f,
-	0x34, 0x3c, 0x6d, 0x5a, 0x0f, 0x48, 0xeb, 0x40, 0xaf, 0xdd, 0x0e, 0xec, 0x50, 0x54, 0x37, 0x06,
-	0x55, 0xc6, 0x2c, 0xf2, 0x35, 0x5e, 0xdf, 0xc6, 0x1f, 0x9d, 0x8c, 0x5a, 0xfe, 0x36, 0xe4, 0x8f,
-	0x9b, 0xac, 0xf2, 0xd6, 0x61, 0xa1, 0x12, 0x3f, 0x74, 0x46, 0xb1, 0x9d, 0xd0, 0xe0, 0xa9, 0xd8,
-	0x52, 0xf6, 0x0d, 0xbc, 0xc0, 0x6a, 0xdb, 0xd8, 0x75, 0x53, 0xf6, 0xf1, 0x99, 0xf1, 0x92, 0xc6,
-	0xf6, 0x74, 0x30, 0x4f, 0x6c, 0xf3, 0xf4, 0xb7, 0x51, 0x97, 0xc0, 0xe2, 0x5b, 0x14, 0x75, 0x97,
-	0xf9, 0xc2, 0x3b, 0x0d, 0x99, 0x94, 0x7c, 0x66, 0xfc, 0x98, 0x8a, 0x8a, 0xd1, 0x1c, 0xfe, 0x6c,
-	0xa8, 0x3f, 0x03, 0x93, 0x20, 0x95, 0x49, 0x8a, 0x54, 0x36, 0x86, 0xd4, 0x6f, 0x29, 0x5e, 0xf5,
-	0xfe, 0x45, 0xd7, 0xd6, 0x20, 0xef, 0xdb, 0xcd, 0x81, 0x1f, 0x48, 0xdf, 0xe4, 0x54, 0x71, 0x3a,
-	0x17, 0x73, 0x3a, 0x2a, 0xcb, 0xc9, 0xbd, 0x36, 0x06, 0xb0, 0x44, 0xd9, 0x2e, 0xfa, 0x31, 0xae,
-	0x31, 0xbb, 0xf3, 0x9a, 0xc4, 0xf8, 0xec, 0x2c, 0xc6, 0xc7, 0xda, 0xac, 0x5b, 0x40, 0xb8, 0xab,
-	0xf3, 0x9d, 0x4c, 0x3b, 0xf9, 0x15, 0x41, 0x9a, 0x39, 0x15, 0x09, 0x54, 0xb0, 0x8c, 0x28, 0x5a,
-	0xca, 0x73, 0x88, 0x7d, 0xd9, 0x10, 0xb0, 0x29, 0x7d, 0x9b, 0xf1, 0x1e, 0x27, 0x86, 0xaa, 0x11,
-	0x7d, 0x9b, 0x48, 0xa9, 0xdf, 0x26, 0xa2, 0xdb, 0x48, 0x6e, 0xfc, 0xea, 0x13, 0xf9, 0x55, 0x40,
-	0x24, 0x54, 0x65, 0xef, 0xc9, 0xc1, 0x41, 0xfd, 0xf0, 0xe8, 0xf0, 0x8b, 0xa7, 0xb5, 0xa3, 0xc7,
-	0x4f, 0x1e, 0xd7, 0x2a, 0x67, 0x46, 0x57, 0xcd, 0xda, 0xce, 0x7e, 0x25, 0x45, 0xce, 0xd2, 0x26,
-	0x42, 0x59, 0xfd, 0xdc, 0xac, 0x1f, 0xd6, 0x2a, 0xe9, 0xab, 0x0f, 0xf9, 0x4f, 0x59, 0x34, 0x47,
-	0xa0, 0x7c, 0xbf, 0xfe, 0xa8, 0x16, 0x33, 0x46, 0xd5, 0x86, 0x6b, 0x66, 0xed, 0xc1, 0xa7, 0x8f,
-	0x76, 0x4c, 0x6a, 0x6d, 0x19, 0x4a, 0xc3, 0xe5, 0xfd, 0xba, 0x59, 0x49, 0x57, 0xbf, 0xcf, 0x43,
-	0x66, 0xe7, 0x69, 0x9d, 0x7c, 0x44, 0x5d, 0x8c, 0xba, 0x15, 0x72, 0x8e, 0xb3, 0x77, 0xb4, 0x7d,
-	0xd1, 0xcf, 0x8d, 0xbd, 0x6a, 0x35, 0xf6, 0x2d, 0xcc, 0x38, 0x43, 0x6e, 0x43, 0x51, 0xe9, 0x41,
-	0xc8, 0xff, 0xd0, 0xc0, 0x78, 0x57, 0xa2, 0xc7, 0x3f, 0x9d, 0x50, 0xc5, 0x2a, 0x68, 0xb2, 0x0f,
-	0x21, 0xab, 0xb8, 0x39, 0xd2, 0x96, 0xe8, 0xe5, 0x98, 0x4a, 0x40, 0x75, 0xa8, 0xb3, 0xc3, 0x46,
-	0x45, 0x38, 0x3b, 0xd6, 0xb9, 0x4c, 0x71, 0xf6, 0x26, 0x14, 0x95, 0x9e, 0x45, 0x38, 0x3b, 0xde,
-	0xc5, 0xe8, 0x6a, 0x12, 0x53, 0xb5, 0x5d, 0x58, 0x54, 0x3b, 0x07, 0xb2, 0x26, 0xb2, 0x6e, 0xac,
-	0x99, 0x98, 0x72, 0xf4, 0x87, 0x50, 0x8a, 0xbd, 0xf8, 0xe4, 0xbc, 0x8a, 0x54, 0xdc, 0xca, 0xe8,
-	0xe7, 0x0c, 0xaa, 0x7e, 0x07, 0x60, 0xf8, 0xe4, 0x8b, 0xc8, 0xc7, 0x7a, 0x00, 0xbd, 0x32, 0xa2,
-	0x18, 0x70, 0xe7, 0xd5, 0xc7, 0x53, 0x38, 0x3f, 0xe1, 0x3d, 0x9d, 0xe2, 0xbc, 0x38, 0x9d, 0x3f,
-	0xda, 0xca, 0xe9, 0xb1, 0x57, 0x7c, 0xe2, 0xe9, 0xdb, 0x90, 0x17, 0x2f, 0x14, 0x59, 0xc1, 0xed,
-	0xf8, 0x7b, 0x75, 0xfa, 0x99, 0x57, 0x52, 0xe4, 0x1e, 0xe4, 0xc5, 0xcb, 0x2d, 0x74, 0xe3, 0xef,
-	0xb8, 0xbe, 0x3e, 0xa6, 0x8b, 0xc5, 0xe8, 0x33, 0xf6, 0x4e, 0x19, 0x67, 0xae, 0xa7, 0x14, 0x6e,
-	0xa2, 0x91, 0x18, 0x37, 0x55, 0x43, 0xf1, 0xaf, 0x1e, 0x43, 0x6e, 0xa2, 0xd6, 0x90, 0x9b, 0xaa,
-	0x4a, 0x39, 0xa6, 0x12, 0xe3, 0x26, 0x6a, 0xa9, 0xdc, 0x4c, 0x14, 0x6f, 0xf5, 0xe7, 0x3c, 0xf3,
-	0x36, 0xb4, 0x7d, 0xcf, 0x72, 0xff, 0x73, 0x89, 0xf9, 0x71, 0xc2, 0xc4, 0x3c, 0xdd, 0xc2, 0x9b,
-	0x1c, 0x7d, 0x93, 0xa3, 0xaf, 0x3d, 0x47, 0x7f, 0xc9, 0x8a, 0xaf, 0x99, 0x2c, 0x41, 0xef, 0x82,
-	0x46, 0x81, 0xe2, 0x7f, 0x0f, 0x99, 0x16, 0xa6, 0x3e, 0xf2, 0x8d, 0x0c, 0x71, 0xdb, 0x01, 0x4d,
-	0xf6, 0x69, 0xc2, 0xfb, 0x91, 0xb6, 0x6d, 0x36, 0x72, 0x34, 0x67, 0x94, 0x9e, 0x4b, 0x20, 0x37,
-	0xde, 0x85, 0x4d, 0xa1, 0xcc, 0x36, 0x2c, 0xaa, 0xdd, 0x97, 0xa0, 0xdd, 0x84, 0x86, 0x4c, 0x1f,
-	0xf9, 0x48, 0x86, 0x4f, 0x69, 0x21, 0x6a, 0xc0, 0xc8, 0xd9, 0x21, 0xdb, 0x54, 0xad, 0xa5, 0xb8,
-	0x56, 0x80, 0x6a, 0xa2, 0xaa, 0xe1, 0x9f, 0x8a, 0x4a, 0xb1, 0x6f, 0x4d, 0x89, 0x8a, 0x19, 0xea,
-	0xc5, 0x58, 0xa2, 0xf4, 0x63, 0x7a, 0xdc, 0x20, 0x55, 0xbc, 0xc1, 0x59, 0x82, 0x5a, 0x43, 0x96,
-	0x4c, 0x53, 0xa1, 0xc8, 0x46, 0x34, 0x41, 0x35, 0x95, 0x26, 0xaa, 0xe2, 0xa9, 0xde, 0x36, 0x16,
-	0x70, 0xe5, 0xc6, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x7b, 0xeb, 0xc9, 0x1b, 0x7a, 0x1c, 0x00,
-	0x00,
+	// 2239 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xc4, 0x59, 0x5b, 0x6f, 0xdb, 0xc8,
+	0xf5, 0x37, 0x75, 0xa5, 0x8e, 0x2e, 0x96, 0xc7, 0x4e, 0xfe, 0xfa, 0x2b, 0xd9, 0xae, 0x33, 0xe9,
+	0x6e, 0x13, 0x77, 0x6b, 0x07, 0x8e, 0x13, 0x07, 0x49, 0xb3, 0x59, 0xc5, 0x96, 0x13, 0x17, 0xbe,
+	0x04, 0xb4, 0x77, 0x17, 0x7d, 0x58, 0x08, 0xb4, 0x34, 0x8c, 0x89, 0x50, 0x22, 0x97, 0xa4, 0xb2,
+	0x70, 0x81, 0xbe, 0xf4, 0xa5, 0xe8, 0x73, 0x81, 0xbe, 0xb5, 0x40, 0x1f, 0xfb, 0xd8, 0x4f, 0xd0,
+	0xa7, 0x7e, 0x92, 0x02, 0xfd, 0x1c, 0xc5, 0x9c, 0x19, 0x52, 0x43, 0x49, 0xa6, 0x24, 0x2f, 0x8a,
+	0x3e, 0x24, 0x1e, 0xce, 0x9c, 0x73, 0xe6, 0xcc, 0xb9, 0xfe, 0x66, 0x04, 0x6b, 0x5d, 0xc7, 0x66,
+	0x83, 0x70, 0xcb, 0xb3, 0x02, 0xfe, 0x6f, 0xd3, 0xf3, 0xdd, 0xd0, 0x25, 0x59, 0xcf, 0x0a, 0x9a,
+	0x77, 0xdf, 0xbb, 0xee, 0x7b, 0x87, 0x6d, 0x99, 0x9e, 0xbd, 0x65, 0x0e, 0x06, 0x6e, 0x68, 0x86,
+	0xb6, 0x3b, 0x90, 0x24, 0xcd, 0x3b, 0x72, 0x15, 0xbf, 0x2e, 0x86, 0xd6, 0x16, 0xeb, 0x7b, 0xe1,
+	0x95, 0x5c, 0xfc, 0x74, 0x7c, 0x31, 0xb4, 0xfb, 0x2c, 0x08, 0xcd, 0xbe, 0x27, 0x09, 0x7e, 0x32,
+	0x4e, 0xf0, 0x83, 0x6f, 0x7a, 0x1e, 0xf3, 0x23, 0xe9, 0x77, 0x23, 0xb5, 0x3e, 0xbc, 0xdf, 0x0a,
+	0x2e, 0x4d, 0xbf, 0x27, 0xfe, 0x17, 0xab, 0xb4, 0x09, 0x39, 0x83, 0x79, 0x2e, 0x21, 0x90, 0x1b,
+	0x98, 0x7d, 0xd6, 0xd0, 0xd6, 0xb5, 0x07, 0x25, 0x03, 0xc7, 0x74, 0x17, 0x0a, 0x7b, 0x6e, 0xbf,
+	0x6f, 0x87, 0xe4, 0x13, 0xc8, 0xf9, 0xcc, 0x73, 0x71, 0xb5, 0xbc, 0x5d, 0xda, 0xe4, 0xc7, 0xe3,
+	0x6c, 0x06, 0x4e, 0x93, 0x1a, 0x64, 0xec, 0x5e, 0x23, 0x83, 0xac, 0x19, 0xbb, 0x47, 0x37, 0xa1,
+	0x28, 0x18, 0x03, 0x72, 0x1f, 0x0a, 0x5d, 0x1c, 0x36, 0xb4, 0xf5, 0xec, 0x83, 0xf2, 0x76, 0x19,
+	0x79, 0xc5, 0xaa, 0x21, 0x97, 0xe8, 0xe7, 0xa0, 0xbf, 0xf6, 0xcd, 0x41, 0xf7, 0x92, 0x05, 0xa4,
+	0x09, 0xfa, 0x85, 0x1c, 0x23, 0x4b, 0xc9, 0x88, 0xbf, 0xe9, 0x2b, 0xc8, 0x1d, 0xd8, 0x0e, 0x4b,
+	0x08, 0xd5, 0xae, 0x11, 0xca, 0x4f, 0xe4, 0x99, 0xe1, 0xa5, 0x54, 0x0b, 0xc7, 0xf4, 0x0e, 0xe4,
+	0x5f, 0x3b, 0x6e, 0xf7, 0x03, 0x5f, 0xbc, 0x34, 0x83, 0xcb, 0xe8, 0xb8, 0x7c, 0x4c, 0x5b, 0x90,
+	0xdb, 0xb7, 0x2d, 0x6b, 0x3e, 0xe9, 0x6b, 0x90, 0x47, 0x33, 0xa2, 0xf8, 0x9c, 0x21, 0x3e, 0xe8,
+	0xdf, 0x34, 0xd0, 0xb9, 0x5d, 0x0e, 0x07, 0x96, 0x3b, 0xcb, 0x68, 0x3b, 0x50, 0xec, 0xfa, 0xcc,
+	0x0c, 0x99, 0x90, 0x51, 0xde, 0x6e, 0x6e, 0x0a, 0x4f, 0x6e, 0x46, 0x9e, 0xdc, 0x3c, 0x8f, 0x5c,
+	0x6d, 0x44, 0xa4, 0xe4, 0x13, 0x80, 0xc0, 0xfe, 0x0d, 0xeb, 0x5c, 0x5c, 0x85, 0x2c, 0x68, 0x64,
+	0x71, 0xf3, 0x12, 0x9f, 0x79, 0xcd, 0x27, 0xc8, 0x43, 0x00, 0xcf, 0x77, 0x3f, 0xb2, 0x81, 0x39,
+	0xe8, 0xb2, 0x46, 0x0e, 0x4d, 0xae, 0xec, 0xac, 0x2c, 0xd2, 0x5d, 0x28, 0x45, 0xaa, 0x06, 0x64,
+	0x03, 0x4a, 0x5c, 0xa9, 0x8e, 0x3d, 0xb0, 0x5c, 0xe9, 0xa9, 0x6a, 0xcc, 0xc6, 0x49, 0x0c, 0xdd,
+	0x97, 0x23, 0xfa, 0xd7, 0x2c, 0x80, 0xb0, 0x06, 0x1e, 0x73, 0x2e, 0x73, 0xdd, 0x86, 0x82, 0xf0,
+	0xa2, 0x74, 0x87, 0xfc, 0x22, 0x8f, 0xa0, 0x2c, 0x28, 0x3a, 0xe1, 0x95, 0xc7, 0xf0, 0x3c, 0xb5,
+	0xed, 0x65, 0x45, 0xc2, 0xf9, 0x95, 0xc7, 0x0c, 0xe8, 0xc6, 0x63, 0xf2, 0x08, 0xaa, 0x9e, 0xe9,
+	0xb3, 0x41, 0xd8, 0x91, 0xbb, 0xe6, 0x26, 0x77, 0xad, 0x08, 0x0a, 0x19, 0xbc, 0x3b, 0x50, 0x0c,
+	0x42, 0xd3, 0xe7, 0x86, 0xce, 0xcf, 0x36, 0xb4, 0x24, 0x25, 0x4f, 0x41, 0xb7, 0xec, 0x81, 0x1d,
+	0x5c, 0xb2, 0x5e, 0xa3, 0x30, 0x93, 0x2d, 0xa6, 0x1d, 0x73, 0x50, 0x71, 0xdc, 0x41, 0x77, 0xa1,
+	0xd4, 0xe5, 0xe6, 0x77, 0x1c, 0xd6, 0x6b, 0xe8, 0xeb, 0xda, 0x03, 0xdd, 0x18, 0x4d, 0xf0, 0xe0,
+	0x37, 0xfd, 0xee, 0xa5, 0xfd, 0x91, 0xf5, 0x1a, 0x25, 0x5c, 0x8c, 0xbf, 0xc9, 0xcf, 0x13, 0xae,
+	0x85, 0xc9, 0x6c, 0x52, 0x9d, 0xfb, 0x0a, 0xca, 0x23, 0x17, 0x05, 0x8a, 0x99, 0x15, 0x07, 0xab,
+	0x66, 0x46, 0x17, 0x4b, 0x33, 0xa3, 0x93, 0xff, 0x90, 0x01, 0x9d, 0xe7, 0x5a, 0x14, 0xc9, 0x96,
+	0xed, 0xb0, 0x44, 0x24, 0xf3, 0x45, 0x03, 0xa7, 0x79, 0xf0, 0xf0, 0xbf, 0xc2, 0x85, 0x19, 0x74,
+	0x61, 0x35, 0xa6, 0x41, 0x07, 0xea, 0x96, 0x1c, 0xcd, 0x8a, 0xdf, 0xa7, 0xa0, 0xf7, 0xdd, 0x9e,
+	0x6d, 0xd9, 0xac, 0x27, 0x1d, 0x9b, 0x6a, 0xf5, 0x88, 0x96, 0xec, 0xc0, 0xb2, 0x3c, 0x60, 0xcc,
+	0x9e, 0x9f, 0x8c, 0x8b, 0x9a, 0xa0, 0x39, 0x8e, 0xb8, 0x3e, 0x03, 0xbd, 0x7b, 0x69, 0x3b, 0x3d,
+	0x9f, 0x0d, 0x1a, 0x05, 0x25, 0x57, 0xf0, 0x6c, 0xf1, 0x12, 0xcf, 0x94, 0xc8, 0x14, 0x41, 0x7c,
+	0xd8, 0x89, 0x4c, 0x89, 0x48, 0xc4, 0x61, 0xd1, 0x88, 0xbb, 0x50, 0xe2, 0xc7, 0x32, 0xcc, 0xc1,
+	0x7b, 0xc6, 0x2b, 0x86, 0xe3, 0xfe, 0xc0, 0x7c, 0xb4, 0x62, 0xce, 0x10, 0x1f, 0x7c, 0x76, 0xc8,
+	0xab, 0x75, 0x54, 0x47, 0xf0, 0x83, 0x1a, 0xa0, 0x63, 0x9d, 0x32, 0x98, 0x45, 0xd6, 0x21, 0x7f,
+	0xc1, 0xc7, 0xd2, 0xfa, 0x80, 0x9b, 0x89, 0x55, 0xb1, 0x40, 0x7e, 0x0a, 0x79, 0x9f, 0x6f, 0x21,
+	0xeb, 0x48, 0x4d, 0x50, 0x44, 0x1b, 0x1b, 0x62, 0x11, 0x95, 0x91, 0x32, 0xf1, 0x14, 0xc8, 0xdb,
+	0xf1, 0x99, 0x95, 0x38, 0x45, 0x44, 0x62, 0xe8, 0x17, 0x72, 0x44, 0xff, 0x94, 0x81, 0x42, 0xcb,
+	0xf3, 0xd8, 0xa0, 0x47, 0xbe, 0x00, 0x88, 0xd9, 0x82, 0xe9, 0x7c, 0xa5, 0x8b, 0x78, 0x93, 0x27,
+	0x8a, 0x79, 0x33, 0x48, 0xfb, 0xff, 0x48, 0x2b, 0x84, 0x6d, 0xee, 0xc9, 0xb5, 0xf6, 0x20, 0xf4,
+	0xaf, 0x46, 0xe6, 0x26, 0x9f, 0x83, 0xee, 0x98, 0x41, 0x88, 0xaa, 0x65, 0x27, 0x9d, 0x58, 0xe4,
+	0x8b, 0xdc, 0x30, 0xb7, 0xa1, 0xd0, 0x63, 0x0e, 0x0b, 0x19, 0x46, 0x8a, 0x6e, 0xc8, 0xaf, 0x64,
+	0x38, 0xe6, 0x53, 0xc3, 0xb1, 0xf9, 0x02, 0xaa, 0x09, 0x35, 0x48, 0x1d, 0xb2, 0x1f, 0xd8, 0x95,
+	0xec, 0x0b, 0x7c, 0xc8, 0x3d, 0xf4, 0xd1, 0x74, 0x86, 0xc2, 0xba, 0xba, 0x21, 0x3e, 0x9e, 0x67,
+	0x9e, 0x69, 0xf4, 0x77, 0x9a, 0x34, 0x29, 0x26, 0xc9, 0x6c, 0x3f, 0xfd, 0x37, 0x2a, 0x3e, 0x7d,
+	0x01, 0x10, 0xeb, 0x10, 0x90, 0x5f, 0x44, 0x0e, 0x52, 0xc2, 0xb3, 0x36, 0xd2, 0x04, 0xe3, 0x53,
+	0x78, 0x08, 0x03, 0xf4, 0xdf, 0x59, 0xd0, 0x79, 0xcf, 0x8b, 0xb2, 0xbc, 0x67, 0x5b, 0x56, 0x22,
+	0xcb, 0xf9, 0xa2, 0x81, 0xd3, 0x93, 0x85, 0x37, 0x33, 0xab, 0xf0, 0x8e, 0x8a, 0x7e, 0x36, 0x51,
+	0xf4, 0x95, 0x82, 0x9c, 0xbb, 0x59, 0x41, 0xce, 0x2f, 0x50, 0x90, 0x77, 0xa0, 0x68, 0x62, 0xc0,
+	0x05, 0x32, 0xc7, 0x9b, 0xf1, 0xc9, 0xf8, 0xb1, 0x65, 0x34, 0x06, 0x22, 0x0a, 0x23, 0xd2, 0x1f,
+	0x57, 0xc6, 0x93, 0xa5, 0xba, 0x94, 0x5a, 0xaa, 0x13, 0x35, 0x1f, 0x92, 0x35, 0xbf, 0xf9, 0x06,
+	0x2a, 0xaa, 0x7a, 0x53, 0xa2, 0xf3, 0x9e, 0x1a, 0x9d, 0xd1, 0x2e, 0x82, 0x47, 0x0d, 0xd5, 0x3f,
+	0x6a, 0x90, 0x3f, 0xe3, 0x10, 0x85, 0x7c, 0x0a, 0x65, 0xcc, 0x8e, 0xc1, 0xb0, 0x7f, 0x11, 0x17,
+	0x23, 0xe0, 0x53, 0x27, 0x38, 0x43, 0xee, 0x41, 0x05, 0x09, 0xfa, 0x6e, 0x6f, 0xe8, 0x0c, 0x03,
+	0x59, 0x98, 0x90, 0xe9, 0x58, 0x4c, 0x71, 0x12, 0x11, 0x65, 0x52, 0x88, 0x08, 0xca, 0x32, 0xce,
+	0x49, 0x29, 0xf7, 0xa1, 0x2a, 0x48, 0x22, 0x31, 0x39, 0xa4, 0x11, 0x7c, 0x52, 0x0e, 0xfd, 0x0e,
+	0x56, 0xf6, 0x30, 0xca, 0x11, 0x9c, 0xb0, 0xef, 0x87, 0x2c, 0x98, 0x89, 0x35, 0x93, 0x08, 0x27,
+	0x93, 0x86, 0x70, 0x1e, 0x03, 0x39, 0x1c, 0x04, 0x1e, 0xeb, 0x86, 0xf3, 0xcb, 0xa7, 0xbf, 0x84,
+	0xe5, 0x23, 0x3b, 0x48, 0x70, 0x24, 0xb7, 0xd4, 0xd2, 0xb6, 0x7c, 0x0b, 0x2b, 0xfb, 0x58, 0x85,
+	0x16, 0x38, 0xd1, 0x1a, 0xe4, 0x2d, 0xd7, 0xef, 0xc6, 0x05, 0x06, 0x3f, 0xa8, 0x05, 0xe4, 0x8c,
+	0x47, 0xbe, 0x8c, 0x18, 0x29, 0xea, 0x3e, 0x14, 0x44, 0x8a, 0x4d, 0x05, 0x5b, 0x62, 0x69, 0x2c,
+	0xfc, 0x32, 0xe9, 0x48, 0xe1, 0xb7, 0xb0, 0x72, 0xe0, 0xfa, 0x1f, 0x6e, 0xb0, 0xcd, 0x75, 0x98,
+	0x2e, 0xb9, 0x7d, 0x36, 0x7d, 0x7b, 0x03, 0x56, 0x0f, 0x30, 0x53, 0x27, 0x14, 0x98, 0x0b, 0x54,
+	0x8a, 0x9c, 0x93, 0x96, 0x93, 0x5f, 0xf4, 0x25, 0xac, 0xb5, 0x44, 0x06, 0x25, 0x85, 0x7e, 0x06,
+	0x45, 0xc1, 0x19, 0x4c, 0xbb, 0x8c, 0x44, 0x6b, 0xf4, 0x05, 0xac, 0xc9, 0xb0, 0x59, 0x5c, 0x27,
+	0xfa, 0x2f, 0x0d, 0x56, 0x78, 0xfc, 0x24, 0x59, 0x37, 0xa1, 0x62, 0xf9, 0x6e, 0xbf, 0x93, 0xb2,
+	0x7d, 0x99, 0x13, 0x44, 0xb7, 0xa6, 0x45, 0x3c, 0x78, 0x03, 0x0c, 0xfd, 0x10, 0x0a, 0x41, 0x68,
+	0x86, 0x32, 0x2b, 0x6b, 0xdb, 0x2b, 0x0a, 0xf1, 0x19, 0x2e, 0x18, 0x92, 0x80, 0x07, 0xa7, 0xe8,
+	0x6a, 0x79, 0x11, 0x9c, 0xf8, 0xc1, 0x13, 0x97, 0x1f, 0x52, 0x5c, 0xda, 0xe6, 0x4e, 0xdc, 0x68,
+	0xd3, 0xcc, 0x8c, 0x4d, 0xe9, 0x73, 0x58, 0x15, 0x59, 0x74, 0x03, 0x07, 0x7c, 0x07, 0xe4, 0xc0,
+	0x19, 0xa6, 0xc5, 0xd3, 0x75, 0xd7, 0x50, 0x42, 0xa1, 0x18, 0xba, 0x1d, 0x3c, 0xc3, 0x44, 0x5d,
+	0x29, 0x84, 0x2e, 0xff, 0x4b, 0xbf, 0x05, 0xe0, 0x9d, 0xe3, 0x98, 0x85, 0x97, 0x2e, 0xc7, 0x43,
+	0x65, 0xc5, 0xaf, 0xd3, 0xd4, 0x82, 0x91, 0x5b, 0xc9, 0x1d, 0x28, 0x59, 0x43, 0xc7, 0xe9, 0x20,
+	0x96, 0x16, 0x21, 0xab, 0xf3, 0x09, 0x8e, 0x4b, 0xe8, 0x3f, 0x35, 0xa8, 0xbd, 0x61, 0x21, 0x42,
+	0xcf, 0x91, 0x41, 0xd3, 0x60, 0xf7, 0x3d, 0xa8, 0xb8, 0x96, 0x15, 0xb0, 0x50, 0x36, 0x29, 0x2e,
+	0x31, 0x6b, 0x94, 0xc5, 0x9c, 0x68, 0x53, 0x93, 0xd8, 0x21, 0xab, 0x76, 0xb1, 0xf5, 0xe8, 0x12,
+	0x9b, 0x53, 0x20, 0x0b, 0xb6, 0x09, 0x79, 0xa1, 0xe5, 0xb1, 0xc5, 0x9b, 0x7f, 0xa7, 0x8f, 0xe7,
+	0x95, 0x7d, 0x77, 0x39, 0x6e, 0xa0, 0xc2, 0x0c, 0x06, 0xf4, 0xe2, 0x31, 0xfd, 0xbb, 0x06, 0xb5,
+	0x77, 0xc3, 0x45, 0xce, 0xb1, 0xc8, 0xf5, 0x21, 0x06, 0x63, 0xfc, 0x2c, 0x15, 0xd9, 0xe1, 0xc8,
+	0x17, 0x50, 0xea, 0x31, 0xc7, 0xee, 0xdb, 0x21, 0xf3, 0x65, 0x48, 0x0b, 0xd0, 0xb3, 0x1f, 0xcd,
+	0x1a, 0x23, 0x02, 0xde, 0x44, 0x87, 0xbe, 0x83, 0x67, 0x29, 0x19, 0x7c, 0x48, 0x7f, 0xaf, 0xc5,
+	0x9d, 0x62, 0x01, 0xbd, 0xd7, 0xd5, 0x27, 0x80, 0x79, 0xac, 0x97, 0x9d, 0x6d, 0xbd, 0xbf, 0x68,
+	0xa2, 0xfd, 0xfc, 0x6f, 0xd5, 0x20, 0x0d, 0x28, 0xfa, 0xac, 0x3b, 0xf4, 0x83, 0x08, 0x5b, 0x47,
+	0x9f, 0x74, 0x3b, 0x6a, 0x70, 0xf3, 0x6b, 0x48, 0x5d, 0x58, 0x3d, 0xfb, 0x7e, 0x68, 0x8e, 0xe7,
+	0xe4, 0xa2, 0x45, 0xf1, 0x01, 0x94, 0x42, 0x37, 0x05, 0x7c, 0xea, 0xa1, 0x2b, 0x46, 0xf4, 0x02,
+	0x56, 0x0d, 0xe6, 0x39, 0xe6, 0xd5, 0x8f, 0xdb, 0xf0, 0x0e, 0x6e, 0x98, 0xe8, 0x71, 0x7a, 0xe8,
+	0x8a, 0xa2, 0x47, 0xbf, 0x86, 0xe5, 0x77, 0xc3, 0x50, 0x5e, 0x7b, 0x84, 0xfc, 0x38, 0x38, 0xb5,
+	0x6b, 0x83, 0x33, 0x33, 0x23, 0x38, 0xe9, 0x10, 0x96, 0xdf, 0xb0, 0xa4, 0xd8, 0xd9, 0x17, 0x8b,
+	0x69, 0x95, 0x20, 0x37, 0xab, 0x12, 0x24, 0x6e, 0x11, 0x4f, 0x81, 0x08, 0xb7, 0x2e, 0xb6, 0x33,
+	0xdd, 0x85, 0x55, 0x99, 0x38, 0x0b, 0x32, 0x12, 0xa8, 0x63, 0x07, 0x51, 0xb8, 0x14, 0xbc, 0x86,
+	0xd7, 0x8e, 0x51, 0x70, 0xa5, 0x5c, 0x4b, 0xe8, 0xcf, 0x44, 0xc2, 0xa8, 0x1c, 0xf1, 0xdb, 0x9c,
+	0xa6, 0xbe, 0xcd, 0xc5, 0x91, 0x3b, 0xbf, 0xf0, 0x8d, 0xd3, 0xe8, 0xa5, 0x4b, 0x16, 0x9f, 0xfa,
+	0xde, 0xe9, 0xf1, 0xf1, 0xe1, 0x79, 0xe7, 0xfc, 0xd7, 0xef, 0xda, 0x9d, 0x93, 0xd3, 0x93, 0x76,
+	0x7d, 0x69, 0x7c, 0xd6, 0x68, 0xb7, 0xf6, 0xeb, 0x1a, 0xb9, 0x05, 0x2b, 0xea, 0xec, 0xb7, 0xc6,
+	0xe1, 0x79, 0xbb, 0x9e, 0xd9, 0x78, 0x2b, 0x5e, 0x55, 0x50, 0x1c, 0x81, 0xda, 0xc1, 0xe1, 0x51,
+	0x3b, 0x21, 0xec, 0x16, 0xac, 0x8c, 0xe6, 0x8c, 0xf6, 0x9b, 0xaf, 0x8f, 0x5a, 0x46, 0x5d, 0x23,
+	0x2b, 0x50, 0x1d, 0x4d, 0xef, 0x1f, 0x1a, 0xf5, 0xcc, 0xc6, 0x57, 0x50, 0x51, 0x7b, 0x27, 0x01,
+	0x28, 0x9c, 0x9c, 0x1a, 0xc7, 0xad, 0xa3, 0xfa, 0x12, 0xa9, 0x80, 0xde, 0x32, 0xf6, 0xde, 0x1e,
+	0x7e, 0xd3, 0xe6, 0xaa, 0x54, 0xa1, 0xb4, 0xd7, 0x3a, 0xd9, 0x6b, 0x1f, 0x1d, 0xb5, 0xf7, 0xeb,
+	0x19, 0x52, 0x84, 0x6c, 0xeb, 0xe8, 0xa8, 0x9e, 0xdd, 0x78, 0x08, 0xa5, 0x38, 0x04, 0x89, 0x0e,
+	0x39, 0xa9, 0x82, 0x0e, 0xb9, 0x5f, 0x9d, 0x9d, 0x9e, 0xd4, 0x35, 0x3e, 0x3a, 0x3a, 0x3c, 0x69,
+	0xd7, 0x33, 0xdb, 0xff, 0x00, 0xc8, 0xb6, 0xde, 0x1d, 0x92, 0x2f, 0x01, 0x46, 0x80, 0x9d, 0xdc,
+	0x16, 0x99, 0x33, 0x8e, 0xe0, 0x9b, 0xb7, 0x27, 0xee, 0x65, 0xed, 0xbe, 0x17, 0x5e, 0xd1, 0x25,
+	0xb2, 0x0b, 0x65, 0x05, 0x91, 0x93, 0xff, 0x43, 0x01, 0x93, 0x18, 0xbd, 0x99, 0x7c, 0x7b, 0xa4,
+	0x4b, 0x64, 0x1b, 0xf4, 0x08, 0x95, 0x93, 0x35, 0x5c, 0x1c, 0x03, 0xe9, 0xcd, 0x5a, 0x82, 0x25,
+	0xa0, 0x4b, 0x5c, 0xd9, 0x11, 0x16, 0x97, 0xca, 0x4e, 0x80, 0xf3, 0x14, 0x65, 0x9f, 0x40, 0x59,
+	0x41, 0xe0, 0x52, 0xd9, 0x49, 0x4c, 0xde, 0x54, 0x0b, 0x08, 0x5d, 0x22, 0x8f, 0x01, 0x46, 0x80,
+	0x5a, 0x6e, 0x3b, 0x81, 0xb0, 0xc7, 0x99, 0x5e, 0x43, 0x45, 0x85, 0xc1, 0xa4, 0x21, 0x6b, 0xe8,
+	0x04, 0x32, 0x4e, 0xd1, 0x77, 0x1f, 0xaa, 0x09, 0xd8, 0x4b, 0xe4, 0x6b, 0xcb, 0x14, 0x28, 0x9c,
+	0x22, 0xe5, 0x25, 0x54, 0x13, 0xe8, 0x57, 0x4a, 0x99, 0x86, 0x88, 0x9b, 0xe3, 0x2f, 0x88, 0x74,
+	0x89, 0x3c, 0x03, 0x18, 0xc1, 0x5f, 0x79, 0xfa, 0x09, 0x3c, 0xdc, 0xac, 0x8f, 0x31, 0x06, 0xc2,
+	0x04, 0x2a, 0xe8, 0x93, 0x26, 0x98, 0x82, 0x03, 0x53, 0x94, 0x7f, 0x0e, 0x65, 0x05, 0xfc, 0x49,
+	0x97, 0x4d, 0xc2, 0xc1, 0xa9, 0xfb, 0x3f, 0x11, 0x9a, 0x8b, 0xf2, 0xae, 0x68, 0x9e, 0x00, 0xb9,
+	0x32, 0x32, 0xa3, 0x5f, 0x2b, 0x84, 0xda, 0x6a, 0x73, 0x93, 0x6a, 0x4f, 0xe9, 0x77, 0x29, 0x6a,
+	0x3f, 0x83, 0x8a, 0xda, 0xaf, 0xa4, 0x8c, 0x29, 0x2d, 0xac, 0x59, 0x51, 0x14, 0x0f, 0xf0, 0xc0,
+	0x45, 0x09, 0xb6, 0xc8, 0x2a, 0x2e, 0x25, 0xa1, 0xd7, 0xf5, 0x7b, 0x3e, 0xd0, 0xc8, 0x2b, 0x28,
+	0x4a, 0xc0, 0x29, 0x79, 0x93, 0xf0, 0xb3, 0x79, 0x67, 0x82, 0x17, 0x7b, 0xc5, 0x37, 0xbc, 0xab,
+	0xd1, 0xa5, 0x47, 0x9a, 0x92, 0xcd, 0x28, 0x24, 0x91, 0xcd, 0xaa, 0xa0, 0xe4, 0xfb, 0xe8, 0x28,
+	0x9b, 0x91, 0x6b, 0x94, 0xcd, 0x2a, 0x4b, 0x2d, 0xc1, 0x92, 0xc8, 0x66, 0xe4, 0x52, 0xb3, 0x79,
+	0xae, 0xf3, 0x92, 0x97, 0x58, 0xed, 0x58, 0xc8, 0x5a, 0x8e, 0x43, 0xae, 0x21, 0x4b, 0x61, 0xff,
+	0x12, 0x40, 0x26, 0xd2, 0x8d, 0xf8, 0xb7, 0xff, 0x9c, 0x93, 0x4f, 0xba, 0xbc, 0x8c, 0xee, 0x80,
+	0x1e, 0x61, 0x07, 0x79, 0xfe, 0x31, 0x28, 0xd1, 0xac, 0x25, 0x1e, 0x55, 0x03, 0xf4, 0x57, 0x0b,
+	0xf4, 0x08, 0x1a, 0x48, 0xae, 0x31, 0xa4, 0x30, 0xdb, 0x63, 0x5f, 0x41, 0x59, 0x69, 0xf3, 0xd2,
+	0x63, 0x93, 0x8d, 0x3f, 0x35, 0xc3, 0x2a, 0x6a, 0xc3, 0x97, 0xa1, 0x3a, 0x05, 0x03, 0x34, 0xc7,
+	0x9e, 0x1d, 0x31, 0xc3, 0x4a, 0x71, 0xcf, 0x27, 0xb7, 0x46, 0x09, 0xa6, 0x72, 0x2d, 0x27, 0xb9,
+	0x64, 0x62, 0x8a, 0x1e, 0x83, 0xbf, 0xce, 0x55, 0x13, 0xaf, 0x77, 0x73, 0xf5, 0x1a, 0xe4, 0x4b,
+	0x44, 0xa7, 0x02, 0x01, 0x9a, 0x49, 0x81, 0x58, 0xc0, 0xf5, 0x08, 0x51, 0x28, 0xd1, 0x99, 0xc6,
+	0xf2, 0x48, 0x1b, 0x85, 0x27, 0xb2, 0xa9, 0xe1, 0xa9, 0x32, 0x5e, 0xab, 0xed, 0x45, 0x01, 0x67,
+	0x1e, 0xff, 0x27, 0x00, 0x00, 0xff, 0xff, 0x40, 0xb6, 0x55, 0x5c, 0x45, 0x1e, 0x00, 0x00,
 }

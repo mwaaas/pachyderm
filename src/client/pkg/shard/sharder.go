@@ -11,16 +11,21 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/pachyderm/pachyderm/src/client/pkg/discovery"
-	"go.pedge.io/lion/proto"
+
+	"golang.org/x/sync/errgroup"
+
+	protolion "go.pedge.io/lion/proto"
 )
 
+// InvalidVersion is defined as -1 since valid versions are non-negative.
 const InvalidVersion int64 = -1
 
 var (
-	holdTTL      uint64 = 20
-	marshaler           = &jsonpb.Marshaler{}
-	ErrCancelled        = fmt.Errorf("cancelled by user")
-	errComplete         = fmt.Errorf("COMPLETE")
+	holdTTL   uint64 = 20
+	marshaler        = &jsonpb.Marshaler{}
+	// ErrCancelled is returned when an action is cancelled by the user
+	ErrCancelled = fmt.Errorf("cancelled by user")
+	errComplete  = fmt.Errorf("COMPLETE")
 )
 
 type sharder struct {
@@ -856,29 +861,13 @@ func (a *sharder) runFrontends(
 				}
 			}
 			if minVersion > version {
-				var wg sync.WaitGroup
-				errCh := make(chan error, 1)
+				var eg errgroup.Group
 				for _, frontend := range frontends {
 					frontend := frontend
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
-						if err := frontend.Version(minVersion); err != nil {
-							select {
-							case errCh <- err:
-								// error reported
-							default:
-								// not the first error
-							}
-							return
-						}
-					}()
+					eg.Go(func() error { return frontend.Version(minVersion) })
 				}
-				wg.Wait()
-				select {
-				case err := <-errCh:
+				if err := eg.Wait(); err != nil {
 					return err
-				default:
 				}
 				version = minVersion
 				versionChan <- version

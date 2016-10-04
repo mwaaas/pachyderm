@@ -7,9 +7,11 @@ import (
 
 	"github.com/pachyderm/pachyderm/src/client"
 	"github.com/pachyderm/pachyderm/src/client/pfs"
+	"github.com/pachyderm/pachyderm/src/client/pkg/uuid"
 	ppsclient "github.com/pachyderm/pachyderm/src/client/pps"
 )
 
+// RunWorkload runs a test workload against a Pachyderm cluster.
 func RunWorkload(
 	client *client.APIClient,
 	rand *rand.Rand,
@@ -26,7 +28,7 @@ func RunWorkload(
 		if err != nil {
 			return err
 		}
-		if jobInfo.State != ppsclient.JobState_JOB_STATE_SUCCESS {
+		if jobInfo.State != ppsclient.JobState_JOB_SUCCESS {
 			return fmt.Errorf("job %s failed", job.ID)
 		}
 	}
@@ -70,7 +72,7 @@ func (w *worker) work(c *client.APIClient) error {
 			return err
 		}
 		w.repos = append(w.repos, &pfs.Repo{Name: repoName})
-		commit, err := c.StartCommit(repoName, "", "")
+		commit, err := c.StartCommit(repoName, uuid.NewWithoutDashes())
 		if err != nil {
 			return err
 		}
@@ -97,7 +99,7 @@ func (w *worker) work(c *client.APIClient) error {
 				return nil
 			}
 			commit := w.finished[w.rand.Intn(len(w.finished))]
-			commit, err := c.StartCommit(commit.Repo.Name, commit.ID, "")
+			commit, err := c.ForkCommit(commit.Repo.Name, commit.ID, uuid.NewWithoutDashes())
 			if err != nil {
 				return err
 			}
@@ -119,7 +121,7 @@ func (w *worker) work(c *client.APIClient) error {
 			if err != nil {
 				return err
 			}
-			if jobInfo.State != ppsclient.JobState_JOB_STATE_SUCCESS {
+			if jobInfo.State != ppsclient.JobState_JOB_SUCCESS {
 				return fmt.Errorf("job %s failed", job.ID)
 			}
 			w.jobs = append(w.jobs, job)
@@ -139,18 +141,17 @@ func (w *worker) work(c *client.APIClient) error {
 				inputs[i] = commit.Repo.Name
 				jobInputs = append(jobInputs, &ppsclient.JobInput{Commit: commit})
 			}
-			var parentJobID string
-			if len(w.jobs) > 0 {
-				parentJobID = w.jobs[w.rand.Intn(len(w.jobs))].ID
-			}
 			outFilename := w.randString(10)
 			job, err := c.CreateJob(
 				"",
 				[]string{"bash"},
 				w.grepCmd(inputs, outFilename),
-				1,
+				&ppsclient.ParallelismSpec{
+					Strategy: ppsclient.ParallelismSpec_CONSTANT,
+					Constant: 1,
+				},
 				jobInputs,
-				parentJobID,
+				"",
 			)
 			if err != nil {
 				return err
@@ -180,8 +181,12 @@ func (w *worker) work(c *client.APIClient) error {
 			"",
 			[]string{"bash"},
 			w.grepCmd(inputs, outFilename),
-			1,
+			&ppsclient.ParallelismSpec{
+				Strategy: ppsclient.ParallelismSpec_CONSTANT,
+				Constant: 1,
+			},
 			pipelineInputs,
+			false,
 		); err != nil {
 			return err
 		}
@@ -202,10 +207,12 @@ func (w *worker) randString(n int) string {
 }
 
 type reader struct {
-	rand  *rand.Rand
-	bytes int
+	rand      *rand.Rand
+	bytes     int
+	bytesRead int
 }
 
+// NewReader returns a Reader which generates strings of characters.
 func NewReader(rand *rand.Rand, bytes int) io.Reader {
 	return &reader{
 		rand:  rand,
@@ -214,19 +221,23 @@ func NewReader(rand *rand.Rand, bytes int) io.Reader {
 }
 
 func (r *reader) Read(p []byte) (int, error) {
+	var bytesReadThisTime int
 	for i := range p {
+		if r.bytesRead+bytesReadThisTime == r.bytes {
+			break
+		}
 		if i%128 == 127 {
 			p[i] = '\n'
 		} else {
 			p[i] = lettersAndSpaces[r.rand.Intn(len(lettersAndSpaces))]
 		}
+		bytesReadThisTime++
 	}
-	p[len(p)-1] = '\n'
-	r.bytes -= len(p)
-	if r.bytes <= 0 {
-		return len(p), io.EOF
+	r.bytesRead += bytesReadThisTime
+	if r.bytesRead == r.bytes {
+		return bytesReadThisTime, io.EOF
 	}
-	return len(p), nil
+	return bytesReadThisTime, nil
 }
 
 func (w *worker) reader() io.Reader {

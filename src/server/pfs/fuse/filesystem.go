@@ -16,7 +16,7 @@ import (
 	"bazil.org/fuse/fs"
 	"github.com/pachyderm/pachyderm/src/client"
 	pfsclient "github.com/pachyderm/pachyderm/src/client/pfs"
-	"github.com/pachyderm/pachyderm/src/client/pkg/uuid"
+	"github.com/pachyderm/pachyderm/src/server/pfs/drive"
 	"go.pedge.io/lion/proto"
 	"go.pedge.io/proto/time"
 	"golang.org/x/net/context"
@@ -25,33 +25,37 @@ import (
 )
 
 type filesystem struct {
-	apiClient client.APIClient
+	apiClient *client.APIClient
 	Filesystem
-	inodes   map[string]uint64
-	lock     sync.RWMutex
-	handleID string
+	inodes     map[string]uint64
+	lock       sync.RWMutex
+	allCommits bool
 }
 
 func newFilesystem(
-	pfsAPIClient pfsclient.APIClient,
+	apiClient *client.APIClient,
 	shard *pfsclient.Shard,
 	commitMounts []*CommitMount,
+	allCommits bool,
 ) *filesystem {
 	return &filesystem{
-		apiClient: client.APIClient{PfsAPIClient: pfsAPIClient},
+		apiClient: apiClient,
 		Filesystem: Filesystem{
 			shard,
 			commitMounts,
 		},
-		inodes:   make(map[string]uint64),
-		lock:     sync.RWMutex{},
-		handleID: uuid.NewWithoutDashes(),
+		inodes:     make(map[string]uint64),
+		allCommits: allCommits,
 	}
 }
 
 func (f *filesystem) Root() (result fs.Node, retErr error) {
 	defer func() {
-		protolion.Debug(&Root{&f.Filesystem, getNode(result), errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&Root{&f.Filesystem, getNode(result), errorToString(retErr)})
+		} else {
+			protolion.Error(&Root{&f.Filesystem, getNode(result), errorToString(retErr)})
+		}
 	}()
 	return &directory{
 		f,
@@ -72,7 +76,11 @@ type directory struct {
 
 func (d *directory) Attr(ctx context.Context, a *fuse.Attr) (retErr error) {
 	defer func() {
-		protolion.Debug(&DirectoryAttr{&d.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&DirectoryAttr{&d.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		} else {
+			protolion.Error(&DirectoryAttr{&d.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		}
 	}()
 
 	a.Valid = time.Nanosecond
@@ -88,7 +96,11 @@ func (d *directory) Attr(ctx context.Context, a *fuse.Attr) (retErr error) {
 
 func (d *directory) Lookup(ctx context.Context, name string) (result fs.Node, retErr error) {
 	defer func() {
-		protolion.Debug(&DirectoryLookup{&d.Node, name, getNode(result), errorToString(retErr)})
+		if retErr == nil || retErr == fuse.ENOENT {
+			protolion.Debug(&DirectoryLookup{&d.Node, name, getNode(result), errorToString(retErr)})
+		} else {
+			protolion.Error(&DirectoryLookup{&d.Node, name, getNode(result), errorToString(retErr)})
+		}
 	}()
 	if d.File.Commit.Repo.Name == "" {
 		return d.lookUpRepo(ctx, name)
@@ -105,13 +117,17 @@ func (d *directory) ReadDirAll(ctx context.Context) (result []fuse.Dirent, retEr
 		for _, dirent := range result {
 			dirents = append(dirents, &Dirent{dirent.Inode, dirent.Name})
 		}
-		protolion.Debug(&DirectoryReadDirAll{&d.Node, dirents, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&DirectoryReadDirAll{&d.Node, dirents, errorToString(retErr)})
+		} else {
+			protolion.Error(&DirectoryReadDirAll{&d.Node, dirents, errorToString(retErr)})
+		}
 	}()
 	if d.File.Commit.Repo.Name == "" {
 		return d.readRepos(ctx)
 	}
 	if d.File.Commit.ID == "" {
-		commitMount := d.fs.getCommitMount(d.File.Commit.Repo.Name)
+		commitMount := d.fs.getCommitMount(d.getRepoOrAliasName())
 		if commitMount != nil && commitMount.Commit.ID != "" {
 			d.File.Commit.ID = commitMount.Commit.ID
 			d.Shard = commitMount.Shard
@@ -124,7 +140,11 @@ func (d *directory) ReadDirAll(ctx context.Context) (result []fuse.Dirent, retEr
 
 func (d *directory) Create(ctx context.Context, request *fuse.CreateRequest, response *fuse.CreateResponse) (result fs.Node, _ fs.Handle, retErr error) {
 	defer func() {
-		protolion.Debug(&DirectoryCreate{&d.Node, getNode(result), errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&DirectoryCreate{&d.Node, getNode(result), errorToString(retErr)})
+		} else {
+			protolion.Error(&DirectoryCreate{&d.Node, getNode(result), errorToString(retErr)})
+		}
 	}()
 	if d.File.Commit.ID == "" {
 		return nil, 0, fuse.EPERM
@@ -134,16 +154,26 @@ func (d *directory) Create(ctx context.Context, request *fuse.CreateRequest, res
 	localResult := &file{
 		directory: *directory,
 		size:      0,
-		local:     true,
+	}
+	if err := localResult.touch(); err != nil {
+		// Check if its a write on a finished commit:
+		if drive.IsPermissionError(err) {
+			err = fuse.EPERM
+		}
+		return nil, 0, err
 	}
 	response.Flags |= fuse.OpenDirectIO | fuse.OpenNonSeekable
-	handle := localResult.newHandle()
+	handle := localResult.newHandle(0)
 	return localResult, handle, nil
 }
 
 func (d *directory) Mkdir(ctx context.Context, request *fuse.MkdirRequest) (result fs.Node, retErr error) {
 	defer func() {
-		protolion.Debug(&DirectoryMkdir{&d.Node, getNode(result), errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&DirectoryMkdir{&d.Node, getNode(result), errorToString(retErr)})
+		} else {
+			protolion.Error(&DirectoryMkdir{&d.Node, getNode(result), errorToString(retErr)})
+		}
 	}()
 	if d.File.Commit.ID == "" {
 		return nil, fuse.EPERM
@@ -158,56 +188,103 @@ func (d *directory) Mkdir(ctx context.Context, request *fuse.MkdirRequest) (resu
 
 func (d *directory) Remove(ctx context.Context, req *fuse.RemoveRequest) (retErr error) {
 	defer func() {
-		protolion.Debug(&FileRemove{&d.Node, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&FileRemove{&d.Node, req.Name, req.Dir, errorToString(retErr)})
+		} else {
+			protolion.Error(&FileRemove{&d.Node, req.Name, req.Dir, errorToString(retErr)})
+		}
 	}()
-	return d.fs.apiClient.DeleteFile(d.Node.File.Commit.Repo.Name, d.Node.File.Commit.ID, filepath.Join(d.Node.File.Path, req.Name))
+	return d.fs.apiClient.DeleteFile(d.Node.File.Commit.Repo.Name,
+		d.Node.File.Commit.ID, filepath.Join(d.Node.File.Path, req.Name))
 }
 
 type file struct {
 	directory
 	size    int64
-	local   bool
 	handles []*handle
+	lock    sync.Mutex
 }
 
 func (f *file) Attr(ctx context.Context, a *fuse.Attr) (retErr error) {
 	defer func() {
-		protolion.Debug(&FileAttr{&f.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&FileAttr{&f.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		} else {
+			protolion.Error(&FileAttr{&f.Node, &Attr{uint32(a.Mode)}, errorToString(retErr)})
+		}
 	}()
-	if f.directory.Write {
-		// If the file is from an open commit, we just pretend that it's
-		// an empty file.
-		a.Size = 0
-	} else {
-		fileInfo, err := f.fs.apiClient.InspectFile(
-			f.File.Commit.Repo.Name,
-			f.File.Commit.ID,
-			f.File.Path,
-			f.fs.getFromCommitID(f.File.Commit.Repo.Name),
-			f.Shard,
-		)
-		if err != nil && !f.local {
-			return err
-		}
-		if fileInfo != nil {
-			a.Size = fileInfo.SizeBytes
-			a.Mtime = prototime.TimestampToTime(fileInfo.Modified)
-		}
+	fileInfo, err := f.fs.apiClient.InspectFile(
+		f.File.Commit.Repo.Name,
+		f.File.Commit.ID,
+		f.File.Path,
+		f.fs.getFromCommitID(f.getRepoOrAliasName()),
+		f.fs.getFullFile(f.getRepoOrAliasName()),
+		f.Shard,
+	)
+	if err != nil {
+		return err
+	}
+	if fileInfo != nil {
+		a.Size = fileInfo.SizeBytes
+		a.Mtime = prototime.TimestampToTime(fileInfo.Modified)
 	}
 	a.Mode = 0666
 	a.Inode = f.fs.inode(f.File)
 	return nil
 }
 
+func (f *file) Setattr(ctx context.Context, req *fuse.SetattrRequest, resp *fuse.SetattrResponse) (retErr error) {
+	defer func() {
+		if retErr == nil {
+			protolion.Debug(&FileSetAttr{&f.Node, errorToString(retErr)})
+		} else {
+			protolion.Error(&FileSetAttr{&f.Node, errorToString(retErr)})
+		}
+	}()
+	if req.Size == 0 && (req.Valid&fuse.SetattrSize) > 0 {
+		err := f.fs.apiClient.DeleteFile(f.Node.File.Commit.Repo.Name,
+			f.Node.File.Commit.ID, f.Node.File.Path)
+		if err != nil {
+			return err
+		}
+		if err := f.touch(); err != nil {
+			return err
+		}
+		for _, handle := range f.handles {
+			handle.lock.Lock()
+			handle.cursor = 0
+			handle.lock.Unlock()
+		}
+	}
+	return nil
+}
+
 func (f *file) Open(ctx context.Context, request *fuse.OpenRequest, response *fuse.OpenResponse) (_ fs.Handle, retErr error) {
 	defer func() {
-		protolion.Debug(&FileOpen{&f.Node, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&FileOpen{&f.Node, errorToString(retErr)})
+		} else {
+			protolion.Error(&FileOpen{&f.Node, errorToString(retErr)})
+		}
 	}()
 	response.Flags |= fuse.OpenDirectIO | fuse.OpenNonSeekable
-	return f.newHandle(), nil
+	fileInfo, err := f.fs.apiClient.InspectFile(
+		f.File.Commit.Repo.Name,
+		f.File.Commit.ID,
+		f.File.Path,
+		f.fs.getFromCommitID(f.getRepoOrAliasName()),
+		f.fs.getFullFile(f.getRepoOrAliasName()),
+		f.Shard,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return f.newHandle(int(fileInfo.SizeBytes)), nil
 }
 
 func (f *file) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
 	for _, h := range f.handles {
 		if h.w != nil {
 			w := h.w
@@ -216,6 +293,32 @@ func (f *file) Fsync(ctx context.Context, req *fuse.FsyncRequest) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (f *file) delimiter() pfsclient.Delimiter {
+	if strings.HasSuffix(f.File.Path, ".json") {
+		return pfsclient.Delimiter_JSON
+	}
+	if strings.HasSuffix(f.File.Path, ".bin") {
+		return pfsclient.Delimiter_NONE
+	}
+	return pfsclient.Delimiter_LINE
+}
+
+func (f *file) touch() error {
+	w, err := f.fs.apiClient.PutFileWriter(
+		f.File.Commit.Repo.Name,
+		f.File.Commit.ID,
+		f.File.Path,
+		f.delimiter(),
+	)
+	if err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -237,9 +340,13 @@ func (f *filesystem) inode(file *pfsclient.File) uint64 {
 	return newInode
 }
 
-func (f *file) newHandle() *handle {
+func (f *file) newHandle(cursor int) *handle {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	h := &handle{
-		f: f,
+		f:      f,
+		cursor: cursor,
 	}
 
 	f.handles = append(f.handles, h)
@@ -248,14 +355,19 @@ func (f *file) newHandle() *handle {
 }
 
 type handle struct {
-	f       *file
-	w       io.WriteCloser
-	written int
+	f      *file
+	w      io.WriteCloser
+	cursor int
+	lock   sync.Mutex
 }
 
 func (h *handle) Read(ctx context.Context, request *fuse.ReadRequest, response *fuse.ReadResponse) (retErr error) {
 	defer func() {
-		protolion.Debug(&FileRead{&h.f.Node, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&FileRead{&h.f.Node, string(response.Data), errorToString(retErr)})
+		} else {
+			protolion.Error(&FileRead{&h.f.Node, string(response.Data), errorToString(retErr)})
+		}
 	}()
 	var buffer bytes.Buffer
 	if err := h.f.fs.apiClient.GetFile(
@@ -264,15 +376,12 @@ func (h *handle) Read(ctx context.Context, request *fuse.ReadRequest, response *
 		h.f.File.Path,
 		request.Offset,
 		int64(request.Size),
-		h.f.fs.getFromCommitID(h.f.File.Commit.Repo.Name),
+		h.f.fs.getFromCommitID(h.f.getRepoOrAliasName()),
+		h.f.fs.getFullFile(h.f.getRepoOrAliasName()),
 		h.f.Shard,
 		&buffer,
 	); err != nil {
 		if grpc.Code(err) == codes.NotFound {
-			// This happens when trying to read from a file in an open
-			// commit. We could catch this at `open(2)` time and never
-			// get here, but Open is currently not a remote operation.
-			//
 			// ENOENT from read(2) is weird, let's call this EINVAL
 			// instead.
 			return fuse.Errno(syscall.EINVAL)
@@ -285,11 +394,17 @@ func (h *handle) Read(ctx context.Context, request *fuse.ReadRequest, response *
 
 func (h *handle) Write(ctx context.Context, request *fuse.WriteRequest, response *fuse.WriteResponse) (retErr error) {
 	defer func() {
-		protolion.Debug(&FileWrite{&h.f.Node, errorToString(retErr)})
+		if retErr == nil {
+			protolion.Debug(&FileWrite{&h.f.Node, string(request.Data), request.Offset, errorToString(retErr)})
+		} else {
+			protolion.Error(&FileWrite{&h.f.Node, string(request.Data), request.Offset, errorToString(retErr)})
+		}
 	}()
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	if h.w == nil {
 		w, err := h.f.fs.apiClient.PutFileWriter(
-			h.f.File.Commit.Repo.Name, h.f.File.Commit.ID, h.f.File.Path, h.f.fs.handleID)
+			h.f.File.Commit.Repo.Name, h.f.File.Commit.ID, h.f.File.Path, h.f.delimiter())
 		if err != nil {
 			return err
 		}
@@ -299,16 +414,22 @@ func (h *handle) Write(ctx context.Context, request *fuse.WriteRequest, response
 	// previous call to Write. Why does the OS send us the same data twice in
 	// different calls? Good question, this is a behavior that's only been
 	// observed on osx, not on linux.
-	repeated := h.written - int(request.Offset)
+	repeated := h.cursor - int(request.Offset)
 	if repeated < 0 {
 		return fmt.Errorf("gap in bytes written, (OpenNonSeekable should make this impossible)")
+	}
+	if repeated > len(request.Data) {
+		// it's currently unclear under which conditions fuse sends us a
+		// request with only repeated data. This prevents us from getting an
+		// array bounds error when it does though.
+		return nil
 	}
 	written, err := h.w.Write(request.Data[repeated:])
 	if err != nil {
 		return err
 	}
 	response.Size = written + repeated
-	h.written += written
+	h.cursor += written
 	if h.f.size < request.Offset+int64(written) {
 		h.f.size = request.Offset + int64(written)
 	}
@@ -316,6 +437,8 @@ func (h *handle) Write(ctx context.Context, request *fuse.WriteRequest, response
 }
 
 func (h *handle) Flush(ctx context.Context, req *fuse.FlushRequest) error {
+	h.lock.Lock()
+	defer h.lock.Unlock()
 	if h.w != nil {
 		w := h.w
 		h.w = nil
@@ -343,10 +466,18 @@ func (d *directory) copy() *directory {
 				},
 				Path: d.File.Path,
 			},
-			Write: d.Write,
-			Shard: d.Shard,
+			Write:     d.Write,
+			Shard:     d.Shard,
+			RepoAlias: d.RepoAlias,
 		},
 	}
+}
+
+func (d *directory) getRepoOrAliasName() string {
+	if d.RepoAlias != "" {
+		return d.RepoAlias
+	}
+	return d.File.Commit.Repo.Name
 }
 
 func (f *filesystem) getCommitMount(nameOrAlias string) *CommitMount {
@@ -356,20 +487,38 @@ func (f *filesystem) getCommitMount(nameOrAlias string) *CommitMount {
 			Shard:  f.Shard,
 		}
 	}
+
+	// We prefer alias matching over repo name matching, since there can be
+	// two commit mounts with the same repo but different aliases, such as
+	// "out" and "prev"
 	for _, commitMount := range f.CommitMounts {
-		if commitMount.Commit.Repo.Name == nameOrAlias || commitMount.Alias == nameOrAlias {
+		if commitMount.Alias == nameOrAlias {
 			return commitMount
 		}
 	}
+	for _, commitMount := range f.CommitMounts {
+		if commitMount.Commit.Repo.Name == nameOrAlias {
+			return commitMount
+		}
+	}
+
 	return nil
 }
 
 func (f *filesystem) getFromCommitID(nameOrAlias string) string {
 	commitMount := f.getCommitMount(nameOrAlias)
-	if commitMount == nil || commitMount.FromCommit == nil {
+	if commitMount == nil || commitMount.DiffMethod == nil || commitMount.DiffMethod.FromCommit == nil {
 		return ""
 	}
-	return commitMount.FromCommit.ID
+	return commitMount.DiffMethod.FromCommit.ID
+}
+
+func (f *filesystem) getFullFile(nameOrAlias string) bool {
+	commitMount := f.getCommitMount(nameOrAlias)
+	if commitMount == nil || commitMount.DiffMethod == nil {
+		return false
+	}
+	return commitMount.DiffMethod.FullFile
 }
 
 func (d *directory) lookUpRepo(ctx context.Context, name string) (fs.Node, error) {
@@ -390,6 +539,12 @@ func (d *directory) lookUpRepo(ctx context.Context, name string) (fs.Node, error
 	result.RepoAlias = commitMount.Alias
 	result.Shard = commitMount.Shard
 
+	if commitMount.Commit.ID == "" {
+		// We don't have a commit mount
+		result.Write = false
+		result.Modified = repoInfo.Created
+		return result, nil
+	}
 	commitInfo, err := d.fs.apiClient.InspectCommit(
 		commitMount.Commit.Repo.Name,
 		commitMount.Commit.ID,
@@ -408,9 +563,10 @@ func (d *directory) lookUpRepo(ctx context.Context, name string) (fs.Node, error
 }
 
 func (d *directory) lookUpCommit(ctx context.Context, name string) (fs.Node, error) {
+	commitID := commitPathToID(name)
 	commitInfo, err := d.fs.apiClient.InspectCommit(
 		d.File.Commit.Repo.Name,
-		name,
+		commitID,
 	)
 	if err != nil {
 		return nil, err
@@ -419,7 +575,7 @@ func (d *directory) lookUpCommit(ctx context.Context, name string) (fs.Node, err
 		return nil, fuse.ENOENT
 	}
 	result := d.copy()
-	result.File.Commit.ID = name
+	result.File.Commit.ID = commitID
 	if commitInfo.CommitType == pfsclient.CommitType_COMMIT_TYPE_READ {
 		result.Write = false
 	} else {
@@ -433,63 +589,54 @@ func (d *directory) lookUpFile(ctx context.Context, name string) (fs.Node, error
 	var fileInfo *pfsclient.FileInfo
 	var err error
 
+	fileInfo, err = d.fs.apiClient.InspectFile(
+		d.File.Commit.Repo.Name,
+		d.File.Commit.ID,
+		path.Join(d.File.Path, name),
+		d.fs.getFromCommitID(d.getRepoOrAliasName()),
+		d.fs.getFullFile(d.getRepoOrAliasName()),
+		d.Shard,
+	)
+	if err != nil {
+		return nil, fuse.ENOENT
+	}
 	if d.Node.Write {
-		// Basically, if the directory is writable, we are looking up files
-		// from an open commit.  In this case, we want to return an empty file,
-		// because sometimes you want to remove a file but a remove operation
-		// is usually proceeded with a lookup operation, and the remove operation
-		// would not be able to proceed if the lookup failed.  Therefore, we want
-		// the lookup to not fail, so we return an empty file.
-		fileInfo = &pfsclient.FileInfo{
-			File: &pfsclient.File{
-				Path: path.Join(d.File.Path, name),
-			},
-			FileType:  pfsclient.FileType_FILE_TYPE_REGULAR,
-			SizeBytes: 0,
-		}
-	} else {
-		fileInfo, err = d.fs.apiClient.InspectFile(
-			d.File.Commit.Repo.Name,
-			d.File.Commit.ID,
-			path.Join(d.File.Path, name),
-			d.fs.getFromCommitID(d.File.Commit.Repo.Name),
-			d.Shard,
-		)
-		if err != nil {
-			return nil, fuse.ENOENT
-		}
+		fileInfo.SizeBytes = 0
 	}
 
 	// We want to inherit the metadata other than the path, which should be the
 	// path currently being looked up
 	directory := d.copy()
 	directory.File.Path = fileInfo.File.Path
+
 	switch fileInfo.FileType {
 	case pfsclient.FileType_FILE_TYPE_REGULAR:
 		return &file{
 			directory: *directory,
 			size:      int64(fileInfo.SizeBytes),
-			local:     false,
 		}, nil
 	case pfsclient.FileType_FILE_TYPE_DIR:
 		return directory, nil
 	default:
-		return nil, fmt.Errorf("Unrecognized FileType.")
+		return nil, fmt.Errorf("unrecognized file type")
 	}
 }
 
 func (d *directory) readRepos(ctx context.Context) ([]fuse.Dirent, error) {
-	repoInfos, err := d.fs.apiClient.ListRepo()
-	if err != nil {
-		return nil, err
-	}
 	var result []fuse.Dirent
-	for _, repoInfo := range repoInfos {
-		commitMount := d.fs.getCommitMount(repoInfo.Repo.Name)
-		if commitMount != nil {
-			name := repoInfo.Repo.Name
-			if commitMount.Alias != "" {
-				name = commitMount.Alias
+	if len(d.fs.CommitMounts) == 0 {
+		repoInfos, err := d.fs.apiClient.ListRepo(nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, repoInfo := range repoInfos {
+			result = append(result, fuse.Dirent{Name: repoInfo.Repo.Name, Type: fuse.DT_Dir})
+		}
+	} else {
+		for _, mount := range d.fs.CommitMounts {
+			name := mount.Commit.Repo.Name
+			if mount.Alias != "" {
+				name = mount.Alias
 			}
 			result = append(result, fuse.Dirent{Name: name, Type: fuse.DT_Dir})
 		}
@@ -498,13 +645,27 @@ func (d *directory) readRepos(ctx context.Context) ([]fuse.Dirent, error) {
 }
 
 func (d *directory) readCommits(ctx context.Context) ([]fuse.Dirent, error) {
-	commitInfos, err := d.fs.apiClient.ListCommit([]string{d.File.Commit.Repo.Name}, nil, client.CommitTypeNone, false, false)
+	status := pfsclient.CommitStatus_NORMAL
+	if d.fs.allCommits {
+		status = pfsclient.CommitStatus_ALL
+	}
+	commitInfos, err := d.fs.apiClient.ListCommit([]*pfsclient.Commit{
+		client.NewCommit(d.File.Commit.Repo.Name, ""),
+	}, nil, client.CommitTypeNone, status, false)
 	if err != nil {
 		return nil, err
 	}
 	var result []fuse.Dirent
 	for _, commitInfo := range commitInfos {
-		result = append(result, fuse.Dirent{Name: commitInfo.Commit.ID, Type: fuse.DT_Dir})
+		commitPath := commitIDToPath(commitInfo.Commit.ID)
+		result = append(result, fuse.Dirent{Name: commitPath, Type: fuse.DT_Dir})
+	}
+	branches, err := d.fs.apiClient.ListBranch(d.File.Commit.Repo.Name, status)
+	if err != nil {
+		return nil, err
+	}
+	for _, branch := range branches {
+		result = append(result, fuse.Dirent{Name: branch, Type: fuse.DT_Dir})
 	}
 	return result, nil
 }
@@ -514,7 +675,8 @@ func (d *directory) readFiles(ctx context.Context) ([]fuse.Dirent, error) {
 		d.File.Commit.Repo.Name,
 		d.File.Commit.ID,
 		d.File.Path,
-		d.fs.getFromCommitID(d.File.Commit.Repo.Name),
+		d.fs.getFromCommitID(d.getRepoOrAliasName()),
+		d.fs.getFullFile(d.getRepoOrAliasName()),
 		d.Shard,
 		// setting recurse to false for performance reasons
 		// it does however means that we won't know the correct sizes of directories
@@ -539,6 +701,22 @@ func (d *directory) readFiles(ctx context.Context) ([]fuse.Dirent, error) {
 		}
 	}
 	return result, nil
+}
+
+// Since commit IDs look like "master/2", we can't directly use them as filenames
+// due to the slash.  So we convert them to something like "master-2"
+func commitIDToPath(commitID string) string {
+	return strings.Join(strings.Split(commitID, "/"), "-")
+}
+
+// the opposite of commitIDToPath
+func commitPathToID(path string) string {
+	parts := strings.Split(path, "-")
+	if len(parts) < 2 {
+		// In this case, path is just a branch name
+		return path
+	}
+	return strings.Join(parts[:len(parts)-1], "-") + "/" + parts[len(parts)-1]
 }
 
 // TODO this code is duplicate elsewhere, we should put it somehwere.

@@ -7,7 +7,7 @@ package protoversion
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import _ "github.com/gengo/grpc-gateway/third_party/googleapis/google/api"
+import _ "github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis/google/api"
 import google_protobuf1 "go.pedge.io/pb/go/google/protobuf"
 
 import (
@@ -22,7 +22,9 @@ var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
-const _ = proto.ProtoPackageIsVersion1
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type Version struct {
 	Major      uint32 `protobuf:"varint,1,opt,name=major" json:"major,omitempty"`
@@ -46,7 +48,7 @@ var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion2
+const _ = grpc.SupportPackageIsVersion3
 
 // Client API for API service
 
@@ -108,8 +110,11 @@ var _API_serviceDesc = grpc.ServiceDesc{
 			Handler:    _API_GetVersion_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: fileDescriptor0,
 }
+
+func init() { proto.RegisterFile("version/protoversion.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
 	// 208 bytes of a gzipped FileDescriptorProto

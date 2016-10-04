@@ -3,39 +3,72 @@ package client
 import (
 	"io"
 
-	"go.pedge.io/proto/stream"
-	"golang.org/x/net/context"
-
 	"github.com/pachyderm/pachyderm/src/client/pfs"
 	"github.com/pachyderm/pachyderm/src/client/pps"
+
+	protostream "go.pedge.io/proto/stream"
 )
 
+// NewJob creates a pps.Job.
 func NewJob(jobID string) *pps.Job {
 	return &pps.Job{ID: jobID}
 }
 
-type InputType int
-
-const (
-	InputTypeMap InputType = iota
-	InputTypeReduce
+var (
+	// MapMethod defines a pps.Method for mapper pipelines.
+	MapMethod = &pps.Method{
+		Partition:   pps.Partition_BLOCK,
+		Incremental: pps.Incremental_DIFF,
+	}
+	// ReduceMethod defines a pps.Method for non-incremental reducer pipelines.
+	ReduceMethod = &pps.Method{
+		Partition:   pps.Partition_FILE,
+		Incremental: pps.Incremental_NONE,
+	}
+	// IncrementalReduceMethod defines a pps.Method for incremental reducer pipelines.
+	IncrementalReduceMethod = &pps.Method{
+		Partition:   pps.Partition_FILE,
+		Incremental: pps.Incremental_DIFF,
+	}
+	// GlobalMethod defines a pps.Method for non-incremental, non-partitioned pipelines.
+	GlobalMethod = &pps.Method{
+		Partition:   pps.Partition_REPO,
+		Incremental: pps.Incremental_NONE,
+	}
+	// DefaultMethod defines the default pps.Method for a pipeline.
+	DefaultMethod = MapMethod
+	// MethodAliasMap maps a string to a pps.Method for JSON decoding.
+	MethodAliasMap = map[string]*pps.Method{
+		"map":                MapMethod,
+		"reduce":             ReduceMethod,
+		"incremental_reduce": IncrementalReduceMethod,
+		"global":             GlobalMethod,
+	}
+	// ReservedRepoNames defines a set of reserved repo names for internal use.
+	ReservedRepoNames = map[string]bool{
+		"out":  true,
+		"prev": true,
+	}
 )
 
-func NewJobInput(repoName string, commitID string, inputType InputType) *pps.JobInput {
+// NewJobInput creates a pps.JobInput.
+func NewJobInput(repoName string, commitID string, method *pps.Method) *pps.JobInput {
 	return &pps.JobInput{
 		Commit: NewCommit(repoName, commitID),
-		Reduce: inputType == InputTypeReduce,
+		Method: method,
 	}
 }
 
+// NewPipeline creates a pps.Pipeline.
 func NewPipeline(pipelineName string) *pps.Pipeline {
 	return &pps.Pipeline{Name: pipelineName}
 }
 
-func NewPipelineInput(repoName string, inputType InputType) *pps.PipelineInput {
+// NewPipelineInput creates a new pps.PipelineInput
+func NewPipelineInput(repoName string, method *pps.Method) *pps.PipelineInput {
 	return &pps.PipelineInput{
 		Repo:   NewRepo(repoName),
-		Reduce: inputType == InputTypeReduce,
+		Method: method,
 	}
 }
 
@@ -59,7 +92,7 @@ func (c APIClient) CreateJob(
 	image string,
 	cmd []string,
 	stdin []string,
-	parallelism uint64,
+	parallelismSpec *pps.ParallelismSpec,
 	inputs []*pps.JobInput,
 	parentJobID string,
 ) (*pps.Job, error) {
@@ -67,31 +100,33 @@ func (c APIClient) CreateJob(
 	if parentJobID != "" {
 		parentJob = NewJob(parentJobID)
 	}
-	return c.PpsAPIClient.CreateJob(
-		context.Background(),
+	job, err := c.PpsAPIClient.CreateJob(
+		c.ctx(),
 		&pps.CreateJobRequest{
 			Transform: &pps.Transform{
 				Image: image,
 				Cmd:   cmd,
 				Stdin: stdin,
 			},
-			Parallelism: parallelism,
-			Inputs:      inputs,
-			ParentJob:   parentJob,
+			ParallelismSpec: parallelismSpec,
+			Inputs:          inputs,
+			ParentJob:       parentJob,
 		},
 	)
+	return job, sanitizeErr(err)
 }
 
 // InspectJob returns info about a specific job.
 // blockOutput will cause the call to block until the job has been assigned an output commit.
 // blockState will cause the call to block until the job reaches a terminal state (failure or success).
 func (c APIClient) InspectJob(jobID string, blockState bool) (*pps.JobInfo, error) {
-	return c.PpsAPIClient.InspectJob(
-		context.Background(),
+	jobInfo, err := c.PpsAPIClient.InspectJob(
+		c.ctx(),
 		&pps.InspectJobRequest{
 			Job:        NewJob(jobID),
 			BlockState: blockState,
 		})
+	return jobInfo, sanitizeErr(err)
 }
 
 // ListJob returns info about all jobs.
@@ -104,13 +139,13 @@ func (c APIClient) ListJob(pipelineName string, inputCommit []*pfs.Commit) ([]*p
 		pipeline = NewPipeline(pipelineName)
 	}
 	jobInfos, err := c.PpsAPIClient.ListJob(
-		context.Background(),
+		c.ctx(),
 		&pps.ListJobRequest{
 			Pipeline:    pipeline,
 			InputCommit: inputCommit,
 		})
 	if err != nil {
-		return nil, err
+		return nil, sanitizeErr(err)
 	}
 	return jobInfos.JobInfo, nil
 }
@@ -121,15 +156,15 @@ func (c APIClient) GetLogs(
 	writer io.Writer,
 ) error {
 	getLogsClient, err := c.PpsAPIClient.GetLogs(
-		context.Background(),
+		c.ctx(),
 		&pps.GetLogsRequest{
 			Job: NewJob(jobID),
 		},
 	)
 	if err != nil {
-		return err
+		return sanitizeErr(err)
 	}
-	return protostream.WriteFromStreamingBytesClient(getLogsClient, writer)
+	return sanitizeErr(protostream.WriteFromStreamingBytesClient(getLogsClient, writer))
 }
 
 // CreatePipeline creates a new pipeline, pipelines are the main computation
@@ -150,16 +185,18 @@ func (c APIClient) GetLogs(
 // on availabe resources.
 // inputs specifies a set of Repos that will be visible to the jobs during runtime.
 // commits to these repos will cause the pipeline to create new jobs to process them.
+// update indicates that you want to update an existing pipeline
 func (c APIClient) CreatePipeline(
 	name string,
 	image string,
 	cmd []string,
 	stdin []string,
-	parallelism uint64,
+	parallelismSpec *pps.ParallelismSpec,
 	inputs []*pps.PipelineInput,
+	update bool,
 ) error {
 	_, err := c.PpsAPIClient.CreatePipeline(
-		context.Background(),
+		c.ctx(),
 		&pps.CreatePipelineRequest{
 			Pipeline: NewPipeline(name),
 			Transform: &pps.Transform{
@@ -167,31 +204,33 @@ func (c APIClient) CreatePipeline(
 				Cmd:   cmd,
 				Stdin: stdin,
 			},
-			Parallelism: parallelism,
-			Inputs:      inputs,
+			ParallelismSpec: parallelismSpec,
+			Inputs:          inputs,
+			Update:          update,
 		},
 	)
-	return err
+	return sanitizeErr(err)
 }
 
 // InspectPipeline returns info about a specific pipeline.
 func (c APIClient) InspectPipeline(pipelineName string) (*pps.PipelineInfo, error) {
-	return c.PpsAPIClient.InspectPipeline(
-		context.Background(),
+	pipelineInfo, err := c.PpsAPIClient.InspectPipeline(
+		c.ctx(),
 		&pps.InspectPipelineRequest{
 			Pipeline: NewPipeline(pipelineName),
 		},
 	)
+	return pipelineInfo, sanitizeErr(err)
 }
 
 // ListPipeline returns info about all pipelines.
 func (c APIClient) ListPipeline() ([]*pps.PipelineInfo, error) {
 	pipelineInfos, err := c.PpsAPIClient.ListPipeline(
-		context.Background(),
+		c.ctx(),
 		&pps.ListPipelineRequest{},
 	)
 	if err != nil {
-		return nil, err
+		return nil, sanitizeErr(err)
 	}
 	return pipelineInfos.PipelineInfo, nil
 }
@@ -199,10 +238,33 @@ func (c APIClient) ListPipeline() ([]*pps.PipelineInfo, error) {
 // DeletePipeline deletes a pipeline along with its output Repo.
 func (c APIClient) DeletePipeline(name string) error {
 	_, err := c.PpsAPIClient.DeletePipeline(
-		context.Background(),
+		c.ctx(),
 		&pps.DeletePipelineRequest{
 			Pipeline: NewPipeline(name),
 		},
 	)
-	return err
+	return sanitizeErr(err)
+}
+
+// StartPipeline restarts a stopped pipeline.
+func (c APIClient) StartPipeline(name string) error {
+	_, err := c.PpsAPIClient.StartPipeline(
+		c.ctx(),
+		&pps.StartPipelineRequest{
+			Pipeline: NewPipeline(name),
+		},
+	)
+	return sanitizeErr(err)
+}
+
+// StopPipeline prevents a pipeline from processing things, it can be restarted
+// with StartPipeline.
+func (c APIClient) StopPipeline(name string) error {
+	_, err := c.PpsAPIClient.StopPipeline(
+		c.ctx(),
+		&pps.StopPipelineRequest{
+			Pipeline: NewPipeline(name),
+		},
+	)
+	return sanitizeErr(err)
 }

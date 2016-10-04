@@ -18,6 +18,14 @@ message Commit {
   string id = 2;
 }
 
+message Commits {
+  repeated Commit commit = 1;
+}
+
+message Branches {
+  repeated string branches = 1;
+}
+
 message File {
   Commit commit = 1;
   string path = 2;
@@ -36,6 +44,7 @@ message RepoInfo {
   Repo repo = 1;
   google.protobuf.Timestamp created = 2;
   uint64 size_bytes = 3;
+  repeated Repo provenance = 4;
 }
 
 message RepoInfos {
@@ -58,6 +67,8 @@ message CommitInfo {
   google.protobuf.Timestamp finished = 6;
   uint64 size_bytes = 7;
   bool cancelled = 8;
+  bool archived = 9;
+  repeated Commit provenance = 10;
 }
 
 message CommitInfos {
@@ -102,7 +113,7 @@ message Append {
   map<string, bool> children = 2;
   Commit last_ref = 3;
   bool delete = 4;
-  map<string, BlockRefs> handles = 5;
+  FileType file_type = 5;
 }
 
 message BlockInfo {
@@ -125,6 +136,8 @@ message DiffInfo {
   map<string, Append> appends = 6;
   uint64 size_bytes = 7;
   bool cancelled = 8;
+  repeated Commit provenance = 9;
+  bool archived = 10;
 }
 
 message Shard {
@@ -136,7 +149,7 @@ message Shard {
 
 message CreateRepoRequest {
   Repo repo = 1;
-  google.protobuf.Timestamp created = 2;
+  repeated Repo provenance = 2;
 }
 
 message InspectRepoRequest {
@@ -144,44 +157,76 @@ message InspectRepoRequest {
 }
 
 message ListRepoRequest {
+    repeated Repo provenance = 1;
 }
 
 message DeleteRepoRequest {
   Repo repo = 1;
+  bool force = 2;
 }
 
 message StartCommitRequest {
-  Repo repo = 1;
-  string id = 2;
-  string parent_id = 3;
-  string branch = 4;
-  google.protobuf.Timestamp started = 5;
+  Commit parent = 1;
+  repeated Commit provenance = 2;
+}
+
+message ForkCommitRequest {
+  Commit parent = 1;
+  string branch = 2;
+  repeated Commit provenance = 3;
 }
 
 message FinishCommitRequest {
   Commit commit = 1;
   bool cancel = 2;
-  google.protobuf.Timestamp finished = 3;
+}
+
+message ArchiveCommitRequest {
+  repeated Commit commits = 1;
 }
 
 message InspectCommitRequest {
   Commit commit = 1;
 }
 
+enum CommitStatus {
+  NORMAL = 0;
+  ARCHIVED = 1;
+  CANCELLED = 2;
+  ALL = 3;
+}
+
 message ListCommitRequest {
-  repeated Repo repo = 1;
-  CommitType commit_type = 2;
-  repeated Commit from_commit = 3;
-  bool all = 4;
+  repeated Commit from_commits = 1;
+  repeated Commit provenance = 2;
+  CommitType commit_type = 3;
+  CommitStatus status = 4;
   bool block = 5;
 }
 
 message ListBranchRequest {
   Repo repo = 1;
+  CommitStatus status = 2;
 }
 
 message DeleteCommitRequest {
   Commit commit = 1;
+}
+
+message FlushCommitRequest {
+  repeated Commit commit = 1;
+  repeated Repo to_repo = 2;
+}
+
+// DiffMethod specifies how file operations represent changes to files.
+// If FromCommit is nil then the whole file will be returned.
+// If FromCommit is not nil and FullFile is false then only the changes since
+// FromCommit will be returned.
+// If FromCommit is not nil and FullFile is true then the whole file will be
+// returned if there have been changes since FromCommit.
+message DiffMethod {
+    Commit from_commit = 1;
+    bool full_file = 2;
 }
 
 message GetFileRequest {
@@ -189,34 +234,48 @@ message GetFileRequest {
   int64 offset_bytes = 2;
   int64 size_bytes = 3;
   Shard shard = 4;
-  Commit from_commit = 5;
-  bool unsafe = 6;
+  DiffMethod diff_method = 5;
+}
+
+enum Delimiter {
+  NONE = 0;
+  JSON = 1;
+  LINE = 2;
 }
 
 message PutFileRequest {
   File file = 1;
   FileType file_type = 2;
   bytes value = 3;
-  string handle = 4;
+  Delimiter delimiter = 4;
+  string url = 5;
 }
 
 message InspectFileRequest {
   File file = 1;
   Shard shard = 2;
-  Commit from_commit = 3;
-  bool unsafe = 4;
+  DiffMethod diff_method = 3;
 }
 
 message ListFileRequest {
   File file = 1;
   Shard shard = 2;
-  Commit from_commit = 3;
+  DiffMethod diff_method = 3;
   bool recurse = 4;
-  bool unsafe = 5;
 }
 
 message DeleteFileRequest {
   File file = 1;
+}
+
+message SquashCommitRequest {
+  repeated Commit from_commits = 1;
+  Commit to_commit = 2;
+}
+
+message ReplayCommitRequest {
+  repeated Commit from_commits = 1;
+  string to_branch = 2;
 }
 
 service API {
@@ -234,16 +293,26 @@ service API {
   // Commit rpcs
   // StartCommit creates a new write commit from a parent commit.
   rpc StartCommit(StartCommitRequest) returns (Commit) {}
+  // Fork creates a commit on a new branch.
+  rpc ForkCommit(ForkCommitRequest) returns (Commit) {}
   // FinishCommit turns a write commit into a read commit.
   rpc FinishCommit(FinishCommitRequest) returns (google.protobuf.Empty) {}
+  // ArchiveCommit marks commits as archived, it will be excluded from ListCommit.
+  rpc ArchiveCommit(ArchiveCommitRequest) returns (google.protobuf.Empty) {}
   // InspectCommit returns the info about a commit.
   rpc InspectCommit(InspectCommitRequest) returns (CommitInfo) {}
   // ListCommit returns info about all commits.
   rpc ListCommit(ListCommitRequest) returns (CommitInfos) {}
   // DeleteCommit deletes a commit.
   rpc DeleteCommit(DeleteCommitRequest) returns (google.protobuf.Empty) {}
+  // FlushCommit waits for downstream commits to finish
+  rpc FlushCommit(FlushCommitRequest) returns (CommitInfos) {}
   // ListBranch returns info about the heads of branches.
-  rpc ListBranch(ListBranchRequest) returns (CommitInfos) {}
+  rpc ListBranch(ListBranchRequest) returns (Branches) {}
+  // Squash returns the head of the commit of the merge
+  rpc SquashCommit(SquashCommitRequest) returns (google.protobuf.Empty) {}
+  // Replay returns the head of the commit of the merge
+  rpc ReplayCommit(ReplayCommitRequest) returns (Commits) {}
 
   // File rpcs
   // PutFile writes the specified file to pfs.
@@ -256,45 +325,16 @@ service API {
   rpc ListFile(ListFileRequest) returns (FileInfos) {}
   // DeleteFile deletes a file.
   rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
+
+  // DeleteAll deletes everything
+  rpc DeleteAll(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  // ArchiveAll archives everything
+  rpc ArchiveAll(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
-service InternalAPI {
-  // Repo rpcs
-  // CreateRepo creates a new repo.
-  // An error is returned if the repo already exists.
-  rpc CreateRepo(CreateRepoRequest) returns (google.protobuf.Empty) {}
-  // InspectRepo returns info about a repo.
-  rpc InspectRepo(InspectRepoRequest) returns (RepoInfo) {}
-  // ListRepo returns info about all repos.
-  rpc ListRepo(ListRepoRequest) returns (RepoInfos) {}
-  // DeleteRepo deletes a repo.
-  rpc DeleteRepo(DeleteRepoRequest) returns (google.protobuf.Empty) {}
-
-  // Commit rpcs
-  // StartCommit creates a new write commit from a parent commit.
-  rpc StartCommit(StartCommitRequest) returns (google.protobuf.Empty) {}
-  // FinishCommit turns a write commit into a read commit.
-  rpc FinishCommit(FinishCommitRequest) returns (google.protobuf.Empty) {}
-  // InspectCommit returns the info about a commit.
-  rpc InspectCommit(InspectCommitRequest) returns (CommitInfo) {}
-  // ListCommit returns info about all commits.
-  rpc ListCommit(ListCommitRequest) returns (CommitInfos) {}
-  // DeleteCommit deletes a commit.
-  rpc DeleteCommit(DeleteCommitRequest) returns (google.protobuf.Empty) {}
-  // ListBranch returns info about the heads of branches.
-  rpc ListBranch(ListBranchRequest) returns (CommitInfos) {}
-
-  // File rpcs
-  // PutFile writes the specified file to pfs.
-  rpc PutFile(stream PutFileRequest) returns (google.protobuf.Empty) {}
-  // GetFile returns a byte stream of the contents of the file.
-  rpc GetFile(GetFileRequest) returns (stream google.protobuf.BytesValue) {}
-  // InspectFile returns info about a file.
-  rpc InspectFile(InspectFileRequest) returns (FileInfo) {}
-  // ListFile returns info about all files.
-  rpc ListFile(ListFileRequest) returns (FileInfos) {}
-  // DeleteFile deletes a file.
-  rpc DeleteFile(DeleteFileRequest) returns (google.protobuf.Empty) {}
+message PutBlockRequest {
+  bytes value = 1;
+  Delimiter delimiter = 2;
 }
 
 message GetBlockRequest {
@@ -327,7 +367,7 @@ message DeleteDiffRequest {
 }
 
 service BlockAPI {
-  rpc PutBlock(stream google.protobuf.BytesValue) returns (BlockRefs) {}
+  rpc PutBlock(stream PutBlockRequest) returns (BlockRefs) {}
   rpc GetBlock(GetBlockRequest) returns (stream google.protobuf.BytesValue) {}
   rpc DeleteBlock(DeleteBlockRequest) returns (google.protobuf.Empty) {}
   rpc InspectBlock(InspectBlockRequest) returns (BlockInfo) {}

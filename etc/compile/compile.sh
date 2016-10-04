@@ -6,10 +6,8 @@ DIR="$(cd "$(dirname "${0}")/../.." && pwd)"
 cd "${DIR}"
 
 BINARY="${1}"
-IMAGE="${2}"
-if [ -z "${IMAGE}" ]; then
-  IMAGE="${1}"
-fi
+LD_FLAGS="${2}"
+PROFILE="${3}"
 
 mkdir -p _tmp
 go build \
@@ -17,6 +15,21 @@ go build \
   -installsuffix netgo \
   -tags netgo \
   -o _tmp/${BINARY} \
+  -ldflags "${LD_FLAGS}" \
   src/server/cmd/${BINARY}/main.go
-docker-compose build ${IMAGE}
-docker tag -f pachyderm_${IMAGE}:latest pachyderm/${IMAGE}:latest
+
+echo "LD_FLAGS=$LD_FLAGS"
+
+# When creating profile binaries, we dont want to detach or do docker ops
+if [ -z ${PROFILE} ]
+then
+    cp Dockerfile.${BINARY} _tmp/Dockerfile
+    docker build -t pachyderm_${BINARY} _tmp
+    docker tag -f pachyderm_${BINARY}:latest pachyderm/${BINARY}:latest
+    docker tag -f pachyderm_${BINARY}:latest pachyderm/${BINARY}:local
+else
+    cd _tmp
+    tar cf - ${BINARY}
+fi
+
+

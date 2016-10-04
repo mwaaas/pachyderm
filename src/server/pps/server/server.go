@@ -10,6 +10,7 @@ import (
 	kube "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
+// APIServer represents an api server.
 type APIServer interface {
 	ppsclient.APIServer
 	ppsserver.InternalJobAPIServer
@@ -17,10 +18,14 @@ type APIServer interface {
 	shard.Server
 }
 
+// NewAPIServer creates an APIServer.
 func NewAPIServer(
 	hasher *ppsserver.Hasher,
 	address string,
 	kubeClient *kube.Client,
+	namespace string,
+	jobShimImage string,
+	jobImagePullPolicy string,
 ) APIServer {
 	return &apiServer{
 		Logger:               protorpclog.NewLogger("pachyderm.ppsclient.API"),
@@ -37,5 +42,8 @@ func NewAPIServer(
 		shardCancelFuncsLock: sync.Mutex{},
 		version:              shard.InvalidVersion,
 		versionLock:          sync.RWMutex{},
+		namespace:            namespace,
+		jobShimImage:         jobShimImage,
+		jobImagePullPolicy:   jobImagePullPolicy,
 	}
 }
